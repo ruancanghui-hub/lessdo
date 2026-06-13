@@ -61,4 +61,29 @@ void main() {
 
     expect(find.text('Pay bill'), findsNothing);
   });
+
+  testWidgets('pending submit can complete after widget is unmounted', (
+    tester,
+  ) async {
+    final completer = Completer<void>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: QuickAdd(onSubmit: (_) => completer.future)),
+      ),
+    );
+    await tester.enterText(find.byType(TextField), 'Pay bill');
+    await tester.pump();
+    await tester.tap(find.text('Add'));
+    await tester.pump();
+    final textController = tester
+        .widget<TextField>(find.byType(TextField))
+        .controller!;
+
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    completer.complete();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(textController.text, 'Pay bill');
+  });
 }

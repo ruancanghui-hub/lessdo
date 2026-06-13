@@ -63,6 +63,35 @@ void main() {
   });
 
   test(
+    'queued settings transforms preserve concurrent field updates',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final preferences = await SharedPreferences.getInstance();
+      final settingsRepository = SettingsRepository(preferences);
+      final controller = AppController(
+        repository: _MemoryTaskRepository(),
+        settingsRepository: settingsRepository,
+        notifications: _FakeNotificationCoordinator(),
+      );
+      await controller.load();
+
+      final themeUpdate = controller.updateSettingsWith(
+        (current) => current.copyWith(themeId: 'dark'),
+      );
+      final textUpdate = controller.updateSettingsWith(
+        (current) => current.copyWith(largeText: true),
+      );
+      await Future.wait([themeUpdate, textUpdate]);
+
+      expect(controller.settings.themeId, 'dark');
+      expect(controller.settings.largeText, isTrue);
+      final persisted = await settingsRepository.load();
+      expect(persisted.themeId, 'dark');
+      expect(persisted.largeText, isTrue);
+    },
+  );
+
+  test(
     'notification scheduling failure persists and publishes retry state',
     () async {
       final repository = _MemoryTaskRepository();

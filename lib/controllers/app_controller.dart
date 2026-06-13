@@ -287,15 +287,25 @@ class AppController extends ChangeNotifier {
     await _cancelWithWarning('deleteListReminders', deletedTaskIds);
   }
 
-  Future<void> updateSettings(AppSettings value) async {
+  Future<void> updateSettings(AppSettings value) =>
+      _enqueueMutation(() => _updateSettings(value));
+
+  Future<void> updateSettingsWith(
+    AppSettings Function(AppSettings current) transform,
+  ) => _enqueueMutation(() => _updateSettings(transform(_settings)));
+
+  Future<void> _updateSettings(AppSettings value) async {
     await _write('saveSettings', () => _settingsRepository.save(value));
     _settings = value;
     notifyListeners();
   }
 
-  Future<bool> updateFaceId(bool enabled) async {
+  Future<bool> updateFaceId(bool enabled) =>
+      _enqueueMutation(() => _updateFaceId(enabled));
+
+  Future<bool> _updateFaceId(bool enabled) async {
     if (enabled && !await authenticate()) return false;
-    await updateSettings(_settings.copyWith(faceId: enabled));
+    await _updateSettings(_settings.copyWith(faceId: enabled));
     return true;
   }
 

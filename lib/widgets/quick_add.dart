@@ -31,8 +31,10 @@ class _QuickAddState extends State<QuickAdd> {
     });
     try {
       await widget.onSubmit(value);
+      if (!mounted) return;
       _controller.clear();
     } catch (error) {
+      if (!mounted) return;
       _errorText = error is StateError
           ? error.message.toString()
           : 'Could not add task';

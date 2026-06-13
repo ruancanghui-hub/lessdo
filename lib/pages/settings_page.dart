@@ -28,8 +28,8 @@ class SettingsPage extends StatelessWidget {
                 title: 'Large text',
                 subtitle: 'More comfortable list reading',
                 value: store.settings.largeText,
-                onChanged: (value) => store.updateSettings(
-                  store.settings.copyWith(largeText: value),
+                onChanged: (value) => store.updateSettingsWith(
+                  (current) => current.copyWith(largeText: value),
                 ),
               ),
               const _GroupTitle('Privacy'),
@@ -144,8 +144,8 @@ class _ThemePicker extends StatelessWidget {
           for (final entry in LessDoTheme.themes.entries)
             Expanded(
               child: InkWell(
-                onTap: () => store.updateSettings(
-                  store.settings.copyWith(themeId: entry.key),
+                onTap: () => store.updateSettingsWith(
+                  (current) => current.copyWith(themeId: entry.key),
                 ),
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
