@@ -83,7 +83,7 @@ class SmartTaskParser {
 
   void _validateChineseTimes(String raw) {
     final candidates = RegExp(
-      r'(上午|中午|下午|晚上|凌晨)?\s*(\d{1,2})[点時时](\d{1,2})?分?',
+      r'(上午|中午|下午|晚上|凌晨)?\s*(\d+)[点時时](?:(\d+)分)?',
     ).allMatches(raw);
     for (final match in candidates) {
       final period = match.group(1);

@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 
 class LessDoTheme {
   static const themes = <String, LessDoPalette>{
+    'system': LessDoPalette(
+      name: 'System',
+      background: Color(0xFFFFFFFF),
+      accent: Color(0xFF2E7BF6),
+    ),
     'snow': LessDoPalette(
       name: 'Snow',
       background: Color(0xFFFFFFFF),

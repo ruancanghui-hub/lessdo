@@ -54,5 +54,7 @@ void main() {
 
   test('rejects invalid Chinese minutes', () {
     expect(() => parser.parse('明天下午3点60分买咖啡'), throwsFormatException);
+    expect(() => parser.parse('明天下午3点123分买咖啡'), throwsFormatException);
+    expect(() => parser.parse('明天下午3点999分买咖啡'), throwsFormatException);
   });
 }

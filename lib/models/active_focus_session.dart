@@ -1,19 +1,52 @@
 enum FocusMode { pomodoro, countdown, countUp }
 
 class ActiveFocusSession {
-  ActiveFocusSession._({
-    required this.id,
-    required this.mode,
+  factory ActiveFocusSession._({
+    required String id,
+    required FocusMode mode,
     required DateTime startedAt,
-    this.taskId,
-    this.taskTitle = '',
+    String? taskId,
+    String taskTitle = '',
     DateTime? pausedAt,
     DateTime? targetAt,
-    this.durationSeconds,
-    this.accumulatedPaused = Duration.zero,
-  }) : startedAt = startedAt.toUtc(),
-       pausedAt = pausedAt?.toUtc(),
-       targetAt = targetAt?.toUtc();
+    int? durationSeconds,
+    Duration accumulatedPaused = Duration.zero,
+  }) {
+    final utcStartedAt = startedAt.toUtc();
+    final utcPausedAt = pausedAt?.toUtc();
+    final utcTargetAt = targetAt?.toUtc();
+    _validateState(
+      mode: mode,
+      startedAt: utcStartedAt,
+      pausedAt: utcPausedAt,
+      targetAt: utcTargetAt,
+      durationSeconds: durationSeconds,
+      accumulatedPaused: accumulatedPaused,
+    );
+    return ActiveFocusSession._raw(
+      id: id,
+      mode: mode,
+      startedAt: utcStartedAt,
+      taskId: taskId,
+      taskTitle: taskTitle,
+      pausedAt: utcPausedAt,
+      targetAt: utcTargetAt,
+      durationSeconds: durationSeconds,
+      accumulatedPaused: accumulatedPaused,
+    );
+  }
+
+  const ActiveFocusSession._raw({
+    required this.id,
+    required this.mode,
+    required this.startedAt,
+    required this.taskId,
+    required this.taskTitle,
+    required this.pausedAt,
+    required this.targetAt,
+    required this.durationSeconds,
+    required this.accumulatedPaused,
+  });
 
   factory ActiveFocusSession.countdown({
     required String id,
@@ -175,11 +208,62 @@ class ActiveFocusSession {
   }
 
   static void _validateDuration(Duration duration) {
-    if (duration <= Duration.zero) {
+    if (duration.inSeconds <= 0) {
       throw ArgumentError.value(
         duration,
         'duration',
-        'Duration must be positive.',
+        'Duration must be at least one second.',
+      );
+    }
+  }
+
+  static void _validateState({
+    required FocusMode mode,
+    required DateTime startedAt,
+    required DateTime? pausedAt,
+    required DateTime? targetAt,
+    required int? durationSeconds,
+    required Duration accumulatedPaused,
+  }) {
+    if (accumulatedPaused.isNegative) {
+      throw ArgumentError.value(
+        accumulatedPaused,
+        'accumulatedPaused',
+        'Accumulated pause cannot be negative.',
+      );
+    }
+    if (pausedAt != null && pausedAt.isBefore(startedAt)) {
+      throw ArgumentError.value(
+        pausedAt,
+        'pausedAt',
+        'Pause cannot precede start.',
+      );
+    }
+
+    if (mode == FocusMode.countUp) {
+      if (targetAt != null || durationSeconds != null) {
+        throw ArgumentError(
+          'Count-up sessions cannot have a target or duration.',
+        );
+      }
+      return;
+    }
+
+    if (durationSeconds == null || durationSeconds <= 0) {
+      throw ArgumentError.value(
+        durationSeconds,
+        'durationSeconds',
+        'Timed sessions require a positive duration.',
+      );
+    }
+    final expectedTarget = startedAt
+        .add(Duration(seconds: durationSeconds))
+        .add(accumulatedPaused);
+    if (targetAt == null || targetAt != expectedTarget) {
+      throw ArgumentError.value(
+        targetAt,
+        'targetAt',
+        'Target must match start, duration, and accumulated pause.',
       );
     }
   }

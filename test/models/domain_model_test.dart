@@ -4,6 +4,7 @@ import 'package:lessdo/models/app_settings.dart';
 import 'package:lessdo/models/focus_session.dart';
 import 'package:lessdo/models/task_item.dart';
 import 'package:lessdo/models/task_list.dart';
+import 'package:lessdo/theme/lessdo_theme.dart';
 
 void main() {
   group('TaskItem', () {
@@ -156,6 +157,7 @@ void main() {
         AppSettings.fromJson(settings.toJson()).language,
         AppLanguage.simplifiedChinese,
       );
+      expect(LessDoTheme.themes, contains(const AppSettings().themeId));
     });
   });
 
@@ -287,6 +289,64 @@ void main() {
       final restored = ActiveFocusSession.fromJson(resumed.toJson());
 
       expect(restored.accumulatedPaused, const Duration(microseconds: 1500));
+    });
+
+    test('fromJson rejects invalid timed session state', () {
+      final base = <String, Object?>{
+        'id': 'active-1',
+        'mode': FocusMode.countdown.name,
+        'startedAt': '2026-06-13T10:00:00.000Z',
+        'targetAt': '2026-06-13T10:10:00.000Z',
+        'durationSeconds': 600,
+        'accumulatedPausedMicroseconds': 0,
+      };
+
+      expect(
+        () => ActiveFocusSession.fromJson({...base, 'durationSeconds': 0}),
+        throwsArgumentError,
+      );
+      expect(
+        () => ActiveFocusSession.fromJson({
+          ...base,
+          'targetAt': '2026-06-13T10:09:59.000Z',
+        }),
+        throwsArgumentError,
+      );
+      expect(
+        () => ActiveFocusSession.fromJson({
+          ...base,
+          'pausedAt': '2026-06-13T09:59:00.000Z',
+        }),
+        throwsArgumentError,
+      );
+      expect(
+        () => ActiveFocusSession.fromJson({
+          ...base,
+          'accumulatedPausedMicroseconds': -1,
+        }),
+        throwsArgumentError,
+      );
+    });
+
+    test('fromJson rejects a count-up target or duration', () {
+      final base = <String, Object?>{
+        'id': 'active-1',
+        'mode': FocusMode.countUp.name,
+        'startedAt': '2026-06-13T10:00:00.000Z',
+        'accumulatedPausedMicroseconds': 0,
+      };
+
+      expect(
+        () => ActiveFocusSession.fromJson({
+          ...base,
+          'targetAt': '2026-06-13T10:10:00.000Z',
+        }),
+        throwsArgumentError,
+      );
+      expect(
+        () => ActiveFocusSession.fromJson({...base, 'durationSeconds': 600}),
+        throwsArgumentError,
+      );
     });
   });
 }
