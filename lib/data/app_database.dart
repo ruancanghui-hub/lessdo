@@ -4,28 +4,64 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite/sqlite_api.dart';
 
 class DatabaseIntegrityException implements Exception {
-  const DatabaseIntegrityException(this.result);
+  DatabaseIntegrityException.results(Iterable<String> messages)
+    : messages = List<String>.unmodifiable(messages),
+      causeType = null,
+      closeFailureType = null;
 
-  final Object? result;
+  DatabaseIntegrityException.queryFailure(Object error)
+    : messages = const [],
+      causeType = error.runtimeType.toString(),
+      closeFailureType = null;
+
+  DatabaseIntegrityException._({
+    required this.messages,
+    required this.causeType,
+    required this.closeFailureType,
+  });
+
+  final List<String> messages;
+  final String? causeType;
+  final String? closeFailureType;
+
+  DatabaseIntegrityException withCloseFailure(Object error) {
+    return DatabaseIntegrityException._(
+      messages: messages,
+      causeType: causeType,
+      closeFailureType: error.runtimeType.toString(),
+    );
+  }
 
   @override
-  String toString() =>
-      'DatabaseIntegrityException: quick_check returned '
-      '${result ?? 'no result'}';
+  String toString() {
+    final details = messages.isNotEmpty
+        ? 'quick_check returned ${messages.join('; ')}'
+        : 'quick_check failed with ${causeType ?? 'unknown error'}';
+    final closeDetails = closeFailureType == null
+        ? ''
+        : '; close failed with $closeFailureType';
+    return 'DatabaseIntegrityException: $details$closeDetails';
+  }
 }
 
 class AppDatabase {
-  AppDatabase._(this._database);
+  AppDatabase._(
+    this._database,
+    Future<void> Function(Database database) closeDatabase,
+  ) : _closeDatabase = (() => closeDatabase(_database));
 
   static const schemaVersion = 1;
   static const _databaseFileName = 'lessdo.sqlite3';
 
   final Database _database;
-  bool _closed = false;
+  final Future<void> Function() _closeDatabase;
+  Future<void>? _closeFuture;
 
   static Future<AppDatabase> open({
     DatabaseFactory? databaseFactory,
     String? path,
+    Future<List<String>> Function(Database database)? integrityCheck,
+    Future<void> Function(Database database)? closeDatabase,
   }) async {
     final factory = databaseFactory ?? sqflite.databaseFactory;
     final databasePath = path ?? await _productionPath();
@@ -33,18 +69,26 @@ class AppDatabase {
       databasePath,
       options: OpenDatabaseOptions(
         version: schemaVersion,
+        singleInstance: false,
         onConfigure: (database) async {
           await database.execute('PRAGMA foreign_keys = ON');
         },
         onCreate: _createSchema,
       ),
     );
-    final appDatabase = AppDatabase._(database);
+    final appDatabase = AppDatabase._(
+      database,
+      closeDatabase ?? ((database) => database.close()),
+    );
 
     try {
-      await appDatabase._verifyIntegrity();
-    } catch (_) {
-      await appDatabase.close();
+      await appDatabase._verifyIntegrity(integrityCheck ?? _quickCheck);
+    } on DatabaseIntegrityException catch (error) {
+      try {
+        await appDatabase.close();
+      } catch (closeError) {
+        throw error.withCloseFailure(closeError);
+      }
       rethrow;
     }
 
@@ -121,6 +165,14 @@ class AppDatabase {
       'CREATE INDEX idx_tasks_reminder '
       'ON tasks(completed, reminder_at_utc)',
     );
+    await database.execute('''
+      CREATE TRIGGER protect_inbox_before_delete
+      BEFORE DELETE ON task_lists
+      WHEN OLD.id = 'inbox'
+      BEGIN
+        SELECT RAISE(ABORT, 'Inbox cannot be deleted');
+      END
+    ''');
     await database.insert('task_lists', {
       'id': 'inbox',
       'name': 'Inbox',
@@ -130,11 +182,25 @@ class AppDatabase {
     });
   }
 
-  Future<void> _verifyIntegrity() async {
-    final rows = await _database.rawQuery('PRAGMA quick_check');
-    final result = rows.length == 1 ? rows.single.values.singleOrNull : null;
-    if (result != 'ok') {
-      throw DatabaseIntegrityException(result);
+  static Future<List<String>> _quickCheck(Database database) async {
+    final rows = await database.rawQuery('PRAGMA quick_check');
+    return [
+      for (final row in rows)
+        for (final value in row.values) value.toString(),
+    ];
+  }
+
+  Future<void> _verifyIntegrity(
+    Future<List<String>> Function(Database database) integrityCheck,
+  ) async {
+    late final List<String> messages;
+    try {
+      messages = await integrityCheck(_database);
+    } catch (error) {
+      throw DatabaseIntegrityException.queryFailure(error);
+    }
+    if (messages.length != 1 || messages.single != 'ok') {
+      throw DatabaseIntegrityException.results(messages);
     }
   }
 
@@ -157,9 +223,5 @@ class AppDatabase {
     return _database.transaction(action);
   }
 
-  Future<void> close() async {
-    if (_closed) return;
-    _closed = true;
-    await _database.close();
-  }
+  Future<void> close() => _closeFuture ??= Future<void>.sync(_closeDatabase);
 }

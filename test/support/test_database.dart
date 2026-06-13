@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:lessdo/data/app_database.dart';
+import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 Future<AppDatabase> openTestDatabase() async {
@@ -7,6 +10,23 @@ Future<AppDatabase> openTestDatabase() async {
     databaseFactory: databaseFactoryFfi,
     path: inMemoryDatabasePath,
   );
+}
+
+Future<TestDatabasePath> createTestDatabasePath() async {
+  final directory = await Directory.systemTemp.createTemp('lessdo_test_');
+  return TestDatabasePath(
+    directory: directory,
+    path: p.join(directory.path, 'lessdo.sqlite3'),
+  );
+}
+
+class TestDatabasePath {
+  const TestDatabasePath({required this.directory, required this.path});
+
+  final Directory directory;
+  final String path;
+
+  Future<void> delete() => directory.delete(recursive: true);
 }
 
 Map<String, Object?> validTaskRow({
