@@ -1,8 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
 
-import '../services/purchase_service.dart';
 import '../store/app_store.dart';
 import '../theme/lessdo_theme.dart';
 import '../widgets/lessdo_top_bar.dart';
@@ -157,29 +155,8 @@ class _ProfileRow extends StatelessWidget {
               ],
             ),
           ),
-          FilledButton(
-            onPressed: () => _showPremium(context),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(76, 34),
-              padding: const EdgeInsets.symmetric(horizontal: 13),
-              shape: const StadiumBorder(),
-            ),
-            child: const Text(
-              'Upgrade',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-            ),
-          ),
         ],
       ),
-    );
-  }
-
-  Future<void> _showPremium(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) => const _PremiumSheet(),
     );
   }
 }
@@ -407,89 +384,6 @@ class _SettingsIcon extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(icon, size: 19, color: const Color(0xFF59687B)),
-    );
-  }
-}
-
-class _PremiumSheet extends StatefulWidget {
-  const _PremiumSheet();
-
-  @override
-  State<_PremiumSheet> createState() => _PremiumSheetState();
-}
-
-class _PremiumSheetState extends State<_PremiumSheet> {
-  final _purchases = PurchaseService();
-  var _loading = true;
-  var _products = const <ProductDetails>[];
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final products = await _purchases.loadProducts();
-    if (mounted) {
-      setState(() {
-        _products = products;
-        _loading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              CupertinoIcons.sparkles,
-              size: 38,
-              color: Color(0xFF388F5A),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'LessDo Premium',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'More themes and privacy tools, with new Premium features added over time.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF777A82)),
-            ),
-            const SizedBox(height: 20),
-            if (_loading)
-              const CircularProgressIndicator()
-            else if (_products.isEmpty)
-              const Text(
-                'Products will appear after they are configured in App Store Connect.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Color(0xFF8C8F97)),
-              )
-            else
-              for (final product in _products)
-                ListTile(
-                  title: Text(product.title),
-                  subtitle: Text(product.description),
-                  trailing: FilledButton(
-                    onPressed: () => _purchases.buy(product),
-                    child: Text(product.price),
-                  ),
-                ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: _purchases.restore,
-              child: const Text('Restore purchases'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
