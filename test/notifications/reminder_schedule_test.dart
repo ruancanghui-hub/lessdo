@@ -51,6 +51,55 @@ void main() {
       expect(result!.timeZoneOffset, const Duration(hours: -4));
     });
 
+    test('daily DST gap skips the missing wall time then returns to 02:30', () {
+      final location = tz.getLocation('America/New_York');
+      const anchor = ReminderAnchor(
+        year: 2026,
+        month: 3,
+        day: 7,
+        hour: 2,
+        minute: 30,
+        timeZoneId: 'America/New_York',
+      );
+
+      final first = nextReminderOccurrenceForAnchor(
+        anchor: anchor,
+        repeatRule: RepeatRule.daily,
+        now: tz.TZDateTime(location, 2026, 3, 7, 3),
+        location: location,
+      );
+      final second = nextReminderOccurrenceForAnchor(
+        anchor: anchor,
+        repeatRule: RepeatRule.daily,
+        now: first!,
+        location: location,
+      );
+
+      expect(first, tz.TZDateTime(location, 2026, 3, 9, 2, 30));
+      expect(second, tz.TZDateTime(location, 2026, 3, 10, 2, 30));
+    });
+
+    test('floating wall clock stays 09:00 after device timezone changes', () {
+      const anchor = ReminderAnchor(
+        year: 2026,
+        month: 6,
+        day: 15,
+        hour: 9,
+        minute: 0,
+        timeZoneId: 'Asia/Shanghai',
+      );
+      final newYork = tz.getLocation('America/New_York');
+
+      final result = nextReminderOccurrenceForAnchor(
+        anchor: anchor,
+        repeatRule: RepeatRule.daily,
+        now: tz.TZDateTime(newYork, 2026, 6, 14, 12),
+        location: newYork,
+      );
+
+      expect(result, tz.TZDateTime(newYork, 2026, 6, 15, 9));
+    });
+
     test('weekly recurrence advances by local calendar weeks', () {
       final location = tz.getLocation('America/New_York');
       final result = nextReminderOccurrence(

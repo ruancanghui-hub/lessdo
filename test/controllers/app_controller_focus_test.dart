@@ -71,4 +71,7 @@ class _FakeNotificationCoordinator implements NotificationCoordinatorContract {
   @override
   Future<ReminderScheduleStatus> snooze(TaskItem task) async =>
       ReminderScheduleStatus.scheduled;
+
+  @override
+  Future<void> dispose() async {}
 }

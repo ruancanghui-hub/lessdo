@@ -2,6 +2,61 @@ enum TaskPriority { low, normal, high }
 
 enum RepeatRule { none, daily, weekly, monthly }
 
+class ReminderAnchor {
+  const ReminderAnchor({
+    required this.year,
+    required this.month,
+    required this.day,
+    required this.hour,
+    required this.minute,
+    this.timeZoneId,
+  });
+
+  factory ReminderAnchor.fromLocal(DateTime value, {String? timeZoneId}) {
+    final local = value.toLocal();
+    return ReminderAnchor(
+      year: local.year,
+      month: local.month,
+      day: local.day,
+      hour: local.hour,
+      minute: local.minute,
+      timeZoneId: timeZoneId,
+    );
+  }
+
+  final int year;
+  final int month;
+  final int day;
+  final int hour;
+  final int minute;
+  final String? timeZoneId;
+
+  String get localDate =>
+      '${year.toString().padLeft(4, '0')}-'
+      '${month.toString().padLeft(2, '0')}-'
+      '${day.toString().padLeft(2, '0')}';
+
+  Map<String, Object?> toJson() => {
+    'year': year,
+    'month': month,
+    'day': day,
+    'hour': hour,
+    'minute': minute,
+    'timeZoneId': timeZoneId,
+  };
+
+  factory ReminderAnchor.fromJson(Map<String, Object?> json) {
+    return ReminderAnchor(
+      year: json['year']! as int,
+      month: json['month']! as int,
+      day: json['day']! as int,
+      hour: json['hour']! as int,
+      minute: json['minute']! as int,
+      timeZoneId: json['timeZoneId'] as String?,
+    );
+  }
+}
+
 class SubTask {
   const SubTask({
     required this.id,
@@ -45,6 +100,7 @@ class TaskItem {
     DateTime? updatedAt,
     DateTime? dueAt,
     DateTime? reminderAt,
+    ReminderAnchor? reminderAnchor,
     String notes = '',
     TaskPriority priority = TaskPriority.normal,
     RepeatRule repeatRule = RepeatRule.none,
@@ -67,6 +123,9 @@ class TaskItem {
       updatedAt: (updatedAt ?? createdAt).toUtc(),
       dueAt: dueAt?.toUtc(),
       reminderAt: reminderAt?.toUtc(),
+      reminderAnchor:
+          reminderAnchor ??
+          (reminderAt == null ? null : ReminderAnchor.fromLocal(reminderAt)),
       notes: notes,
       priority: priority,
       repeatRule: repeatRule,
@@ -87,6 +146,7 @@ class TaskItem {
     required this.updatedAt,
     required this.dueAt,
     required this.reminderAt,
+    required this.reminderAnchor,
     required this.notes,
     required this.priority,
     required this.repeatRule,
@@ -106,6 +166,7 @@ class TaskItem {
     DateTime? updatedAt,
     DateTime? dueAt,
     DateTime? reminderAt,
+    ReminderAnchor? reminderAnchor,
     String notes = '',
     TaskPriority priority = TaskPriority.normal,
     RepeatRule repeatRule = RepeatRule.none,
@@ -124,6 +185,7 @@ class TaskItem {
       updatedAt: updatedAt,
       dueAt: dueAt,
       reminderAt: reminderAt,
+      reminderAnchor: reminderAnchor,
       notes: notes,
       priority: priority,
       repeatRule: repeatRule,
@@ -143,6 +205,7 @@ class TaskItem {
   final DateTime updatedAt;
   final DateTime? dueAt;
   final DateTime? reminderAt;
+  final ReminderAnchor? reminderAnchor;
   final String notes;
   final TaskPriority priority;
   final RepeatRule repeatRule;
@@ -179,6 +242,7 @@ class TaskItem {
     bool clearDueAt = false,
     DateTime? reminderAt,
     bool clearReminderAt = false,
+    ReminderAnchor? reminderAnchor,
     String? notes,
     TaskPriority? priority,
     RepeatRule? repeatRule,
@@ -199,6 +263,12 @@ class TaskItem {
       updatedAt: updatedAt ?? this.updatedAt,
       dueAt: clearDueAt ? null : dueAt ?? this.dueAt,
       reminderAt: clearReminderAt ? null : reminderAt ?? this.reminderAt,
+      reminderAnchor: clearReminderAt
+          ? null
+          : reminderAnchor ??
+                (reminderAt == null
+                    ? this.reminderAnchor
+                    : ReminderAnchor.fromLocal(reminderAt)),
       notes: notes ?? this.notes,
       priority: priority ?? this.priority,
       repeatRule: repeatRule ?? this.repeatRule,
@@ -220,6 +290,7 @@ class TaskItem {
     'updatedAt': updatedAt.toUtc().toIso8601String(),
     'dueAt': dueAt?.toUtc().toIso8601String(),
     'reminderAt': reminderAt?.toUtc().toIso8601String(),
+    'reminderAnchor': reminderAnchor?.toJson(),
     'notes': notes,
     'priority': priority.name,
     'repeatRule': repeatRule.name,
@@ -243,6 +314,11 @@ class TaskItem {
           DateTime.parse(json['createdAt']! as String).toUtc(),
       dueAt: _date(json['dueAt']),
       reminderAt: _date(json['reminderAt']),
+      reminderAnchor: json['reminderAnchor'] is Map
+          ? ReminderAnchor.fromJson(
+              Map<String, Object?>.from(json['reminderAnchor']! as Map),
+            )
+          : null,
       notes: (json['notes'] as String?) ?? '',
       priority: TaskPriority.values.byName(
         (json['priority'] as String?) ?? TaskPriority.normal.name,

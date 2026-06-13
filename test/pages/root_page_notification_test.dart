@@ -10,6 +10,7 @@ import 'package:lessdo/models/focus_session.dart';
 import 'package:lessdo/models/task_item.dart';
 import 'package:lessdo/models/task_list.dart';
 import 'package:lessdo/notifications/notification_coordinator.dart';
+import 'package:lessdo/notifications/reminder_schedule.dart';
 import 'package:lessdo/pages/root_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -127,6 +128,9 @@ class _Notifications implements NotificationCoordinatorContract {
   @override
   Future<ReminderScheduleStatus> snooze(TaskItem task) async =>
       ReminderScheduleStatus.scheduled;
+
+  @override
+  Future<void> dispose() async {}
 }
 
 class _Repository implements TaskRepository {
@@ -148,6 +152,21 @@ class _Repository implements TaskRepository {
 
   @override
   Future<void> saveTask(TaskItem task) async {}
+
+  @override
+  Future<TaskItem?> patchReminderSchedulingState(
+    String taskId,
+    bool failed,
+  ) async => null;
+
+  @override
+  Future<int> notificationIdFor({
+    required String taskId,
+    required String occurrenceKey,
+  }) async => stableNotificationId(
+    NotificationIdNamespace.task,
+    '$taskId:$occurrenceKey',
+  );
 
   @override
   Future<void> deleteTask(String taskId) async {}

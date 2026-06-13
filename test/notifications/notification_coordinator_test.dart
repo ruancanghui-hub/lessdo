@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:lessdo/data/task_repository.dart';
@@ -6,6 +8,7 @@ import 'package:lessdo/models/focus_session.dart';
 import 'package:lessdo/models/task_item.dart';
 import 'package:lessdo/models/task_list.dart';
 import 'package:lessdo/notifications/notification_coordinator.dart';
+import 'package:lessdo/notifications/reminder_schedule.dart';
 import 'package:lessdo/services/notification_service.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -23,6 +26,179 @@ void main() {
 
       expect(platform.initializeCalls, 1);
       expect(platform.permissionRequests, 0);
+    },
+  );
+
+  test('launch action is consumed only once', () async {
+    final platform = _FakeNotificationPlatform()
+      ..launchResponse = NotificationResponseData(
+        actionId: '',
+        payload: taskNotificationPayload('task-1'),
+      );
+    final coordinator = _coordinator(platform: platform);
+    await coordinator.initialize();
+
+    expect(
+      await coordinator.launchAction(),
+      const NotificationAction.open('task-1'),
+    );
+    expect(await coordinator.launchAction(), isNull);
+  });
+
+  test(
+    'global monthly planner gives every task a first slot within 64',
+    () async {
+      final location = tz.getLocation('Asia/Shanghai');
+      final tasks = [
+        for (var index = 0; index < 6; index++)
+          _task(
+            'monthly-$index',
+            reminderAt: tz.TZDateTime(location, 2026, 1, 31, 9 + index),
+            repeatRule: RepeatRule.monthly,
+          ),
+      ];
+      final platform = _FakeNotificationPlatform()
+        ..permissionStatus = NotificationPermissionStatus.granted;
+      final coordinator = _coordinator(
+        platform: platform,
+        repository: _MemoryTaskRepository(tasks: tasks),
+        location: location,
+        now: () => tz.TZDateTime(location, 2026, 2, 1),
+      );
+
+      await coordinator.reconcile();
+
+      expect(platform.pending, hasLength(64));
+      for (final task in tasks) {
+        expect(
+          platform.pending.where(
+            (item) => parseTaskNotificationPayload(item.payload) == task.id,
+          ),
+          isNotEmpty,
+        );
+      }
+    },
+  );
+
+  test(
+    'over capacity selection is stable and repeated reconcile is idle',
+    () async {
+      final tasks = [
+        for (var index = 0; index < 70; index++)
+          _task(
+            'task-${index.toString().padLeft(2, '0')}',
+            reminderAt: DateTime.utc(2026, 6, 15, index % 24),
+          ),
+      ];
+      final platform = _FakeNotificationPlatform()
+        ..permissionStatus = NotificationPermissionStatus.granted;
+      final coordinator = _coordinator(
+        platform: platform,
+        repository: _MemoryTaskRepository(tasks: tasks),
+      );
+
+      final first = await coordinator.reconcile();
+      final scheduledAfterFirst = platform.scheduled.length;
+      final cancelledAfterFirst = platform.cancelledIds.length;
+      final second = await coordinator.reconcile();
+
+      expect(platform.pending, hasLength(64));
+      expect(first.capacityLimitedTaskIds, hasLength(6));
+      expect(second.capacityLimitedTaskIds, first.capacityLimitedTaskIds);
+      expect(platform.scheduled, hasLength(scheduledAfterFirst));
+      expect(platform.cancelledIds, hasLength(cancelledAfterFirst));
+    },
+  );
+
+  test(
+    'overlapping reconciles serialize and schedule each request once',
+    () async {
+      final gate = Completer<void>();
+      final started = Completer<void>();
+      final platform = _FakeNotificationPlatform()
+        ..permissionStatus = NotificationPermissionStatus.granted
+        ..scheduleGate = gate
+        ..scheduleStarted = started;
+      final coordinator = _coordinator(
+        platform: platform,
+        repository: _MemoryTaskRepository(tasks: [_task('task-1')]),
+      );
+
+      final first = coordinator.reconcile();
+      await started.future;
+      final second = coordinator.reconcile();
+      gate.complete();
+      await Future.wait([first, second]);
+
+      expect(platform.scheduled, hasLength(1));
+      expect(platform.pending, hasLength(1));
+    },
+  );
+
+  test(
+    'reconcile refreshes timezone and keeps the floating wall hour',
+    () async {
+      final shanghai = tz.getLocation('Asia/Shanghai');
+      final newYork = tz.getLocation('America/New_York');
+      final task = TaskItem.create(
+        id: 'task-1',
+        title: 'task-1',
+        listId: 'inbox',
+        createdAt: DateTime.utc(2026),
+        reminderAt: tz.TZDateTime(shanghai, 2026, 6, 15, 9),
+        reminderAnchor: const ReminderAnchor(
+          year: 2026,
+          month: 6,
+          day: 15,
+          hour: 9,
+          minute: 0,
+          timeZoneId: 'Asia/Shanghai',
+        ),
+        repeatRule: RepeatRule.daily,
+      );
+      final platform = _FakeNotificationPlatform()
+        ..permissionStatus = NotificationPermissionStatus.granted;
+      final coordinator = NotificationCoordinator(
+        platform: platform,
+        repository: _MemoryTaskRepository(tasks: [task]),
+        location: shanghai,
+        locationProvider: () async => newYork,
+        now: () => tz.TZDateTime(newYork, 2026, 6, 14, 12),
+      );
+
+      await coordinator.reconcile();
+
+      expect(
+        platform.scheduled.single.scheduledDate,
+        tz.TZDateTime(newYork, 2026, 6, 15, 9),
+      );
+    },
+  );
+
+  test(
+    'active snoozes reserve space inside the global pending limit',
+    () async {
+      final tasks = [
+        for (var index = 0; index < 64; index++)
+          _task('task-${index.toString().padLeft(2, '0')}'),
+      ];
+      final platform = _FakeNotificationPlatform()
+        ..permissionStatus = NotificationPermissionStatus.granted
+        ..pending.add(
+          PendingNotification(
+            id: taskSnoozeNotificationId(tasks.first.id),
+            payload: taskSnoozeNotificationPayload(tasks.first.id),
+          ),
+        );
+      final coordinator = _coordinator(
+        platform: platform,
+        repository: _MemoryTaskRepository(tasks: tasks),
+      );
+
+      final report = await coordinator.reconcile();
+
+      expect(platform.pending, hasLength(64));
+      expect(report.capacityLimitedTaskIds, hasLength(1));
     },
   );
 
@@ -81,7 +257,7 @@ void main() {
   });
 
   test(
-    'monthly schedule preloads twelve stable one-time occurrences',
+    'monthly schedule fills available global slots with one-time occurrences',
     () async {
       final location = tz.getLocation('Asia/Shanghai');
       final platform = _FakeNotificationPlatform()
@@ -99,10 +275,10 @@ void main() {
 
       await coordinator.schedule(task);
 
-      expect(platform.scheduled, hasLength(12));
+      expect(platform.scheduled, hasLength(64));
       expect(
         platform.scheduled.map((request) => request.id).toSet(),
-        hasLength(12),
+        hasLength(64),
       );
       expect(
         platform.scheduled[0].scheduledDate,
@@ -130,17 +306,8 @@ void main() {
         reminderAt: tz.TZDateTime(location, 2026, 1, 31, 18, 45),
         repeatRule: RepeatRule.monthly,
       );
-      final expected = monthlyTaskNotifications(
-        task: task,
-        now: tz.TZDateTime(location, 2026, 1, 31, 19),
-        location: location,
-      );
       final platform = _FakeNotificationPlatform()
-        ..permissionStatus = NotificationPermissionStatus.granted
-        ..pending.addAll([
-          for (final request in expected.skip(1))
-            PendingNotification(id: request.id, payload: request.payload),
-        ]);
+        ..permissionStatus = NotificationPermissionStatus.granted;
       final coordinator = _coordinator(
         platform: platform,
         repository: _MemoryTaskRepository(tasks: [task]),
@@ -149,9 +316,13 @@ void main() {
       );
 
       await coordinator.reconcile();
+      final missing = platform.pending.first;
+      platform.pending.remove(missing);
+      platform.scheduled.clear();
+      await coordinator.reconcile();
 
       expect(platform.scheduled, hasLength(1));
-      expect(platform.scheduled.single.id, expected.first.id);
+      expect(platform.scheduled.single.id, missing.id);
       expect(
         platform.scheduled.single.scheduledDate,
         tz.TZDateTime(location, 2026, 2, 28, 18, 45),
@@ -168,17 +339,8 @@ void main() {
         reminderAt: tz.TZDateTime(location, 2026, 1, 31, 18, 45),
         repeatRule: RepeatRule.monthly,
       );
-      final initial = monthlyTaskNotifications(
-        task: task,
-        now: tz.TZDateTime(location, 2026, 1, 31, 19),
-        location: location,
-      );
       final platform = _FakeNotificationPlatform()
-        ..permissionStatus = NotificationPermissionStatus.granted
-        ..pending.addAll([
-          for (final request in initial.skip(1))
-            PendingNotification(id: request.id, payload: request.payload),
-        ]);
+        ..permissionStatus = NotificationPermissionStatus.granted;
       final coordinator = _coordinator(
         platform: platform,
         repository: _MemoryTaskRepository(tasks: [task]),
@@ -188,12 +350,13 @@ void main() {
 
       await coordinator.reconcile();
 
-      final march = initial[1];
-      expect(platform.pending.any((pending) => pending.id == march.id), isTrue);
-      expect(platform.scheduled, hasLength(1));
       expect(
-        platform.scheduled.single.scheduledDate,
-        tz.TZDateTime(location, 2027, 2, 28, 18, 45),
+        platform.scheduled.any(
+          (item) =>
+              item.scheduledDate ==
+              tz.TZDateTime(location, 2026, 3, 31, 18, 45),
+        ),
+        isTrue,
       );
     },
   );
@@ -294,7 +457,7 @@ void main() {
     final report = await coordinator.reconcile();
 
     expect(report.failedTaskIds, ['task-1']);
-    expect(repository.tasks.single.reminderSchedulingFailed, isTrue);
+    expect(repository.tasks.single.reminderSchedulingFailed, isFalse);
   });
 
   test(
@@ -315,9 +478,10 @@ void main() {
         repository: repository,
       );
 
-      await coordinator.reconcile();
+      final report = await coordinator.reconcile();
 
-      expect(repository.tasks.single.reminderSchedulingFailed, isFalse);
+      expect(report.recoveredTaskIds, ['task-1']);
+      expect(repository.tasks.single.reminderSchedulingFailed, isTrue);
     },
   );
 
@@ -483,12 +647,20 @@ TaskItem _task(
   DateTime? reminderAt,
   RepeatRule repeatRule = RepeatRule.none,
 }) {
+  final resolvedReminder = reminderAt ?? DateTime.utc(2026, 6, 15);
   return TaskItem.create(
     id: id,
     title: id,
     listId: 'inbox',
     createdAt: DateTime.utc(2026),
-    reminderAt: reminderAt ?? DateTime.utc(2026, 6, 15),
+    reminderAt: resolvedReminder,
+    reminderAnchor: ReminderAnchor(
+      year: resolvedReminder.year,
+      month: resolvedReminder.month,
+      day: resolvedReminder.day,
+      hour: resolvedReminder.hour,
+      minute: resolvedReminder.minute,
+    ),
     repeatRule: repeatRule,
   );
 }
@@ -502,6 +674,8 @@ class _FakeNotificationPlatform implements NotificationPlatform {
   final List<int> cancelledIds = [];
   final Set<String> scheduleFailures = {};
   NotificationResponseData? launchResponse;
+  Completer<void>? scheduleGate;
+  Completer<void>? scheduleStarted;
   int initializeCalls = 0;
   int permissionRequests = 0;
   void Function(NotificationResponseData response)? _onResponse;
@@ -528,14 +702,23 @@ class _FakeNotificationPlatform implements NotificationPlatform {
   @override
   Future<void> schedule(ScheduledNotification notification) async {
     scheduled.add(notification);
+    if (scheduleStarted case final started?) {
+      if (!started.isCompleted) started.complete();
+    }
+    if (scheduleGate case final gate?) await gate.future;
     if (scheduleFailures.contains(notification.taskId)) {
       throw StateError('schedule failed');
     }
+    pending.removeWhere((item) => item.id == notification.id);
+    pending.add(
+      PendingNotification(id: notification.id, payload: notification.payload),
+    );
   }
 
   @override
   Future<void> cancel(int notificationId) async {
     cancelledIds.add(notificationId);
+    pending.removeWhere((item) => item.id == notificationId);
   }
 
   @override
@@ -558,6 +741,7 @@ class _MemoryTaskRepository implements TaskRepository {
     : tasks = List.of(tasks);
 
   final List<TaskItem> tasks;
+  final Map<String, int> _notificationIds = {};
 
   @override
   Future<RepositorySnapshot> loadSnapshot() async => RepositorySnapshot(
@@ -576,6 +760,35 @@ class _MemoryTaskRepository implements TaskRepository {
     } else {
       tasks[index] = task;
     }
+  }
+
+  @override
+  Future<TaskItem?> patchReminderSchedulingState(
+    String taskId,
+    bool failed,
+  ) async {
+    final index = tasks.indexWhere((item) => item.id == taskId);
+    if (index == -1) return null;
+    tasks[index] = tasks[index].copyWith(reminderSchedulingFailed: failed);
+    return tasks[index];
+  }
+
+  @override
+  Future<int> notificationIdFor({
+    required String taskId,
+    required String occurrenceKey,
+  }) async {
+    final key = '$taskId|$occurrenceKey';
+    return _notificationIds.putIfAbsent(key, () {
+      var candidate = stableNotificationId(
+        NotificationIdNamespace.task,
+        taskId,
+      );
+      while (_notificationIds.containsValue(candidate)) {
+        candidate = candidate == 0x3fffffff ? 1 : candidate + 1;
+      }
+      return candidate;
+    });
   }
 
   @override

@@ -15,13 +15,10 @@ enum NotificationActionType { open, complete, snooze10 }
 
 class NotificationAction {
   const NotificationAction._(this.type, this.taskId);
-
   const NotificationAction.open(String taskId)
     : this._(NotificationActionType.open, taskId);
-
   const NotificationAction.complete(String taskId)
     : this._(NotificationActionType.complete, taskId);
-
   const NotificationAction.snooze10(String taskId)
     : this._(NotificationActionType.snooze10, taskId);
 
@@ -40,14 +37,12 @@ class NotificationAction {
 
 class NotificationResponseData {
   const NotificationResponseData({required this.actionId, this.payload});
-
   final String? actionId;
   final String? payload;
 }
 
 class PendingNotification {
   const PendingNotification({required this.id, this.payload});
-
   final int id;
   final String? payload;
 }
@@ -76,39 +71,27 @@ abstract interface class NotificationPlatform {
   Future<void> initialize({
     required void Function(NotificationResponseData response) onResponse,
   });
-
   Future<NotificationPermissionStatus> getPermissionStatus();
-
   Future<NotificationPermissionStatus> requestPermission();
-
   Future<void> schedule(ScheduledNotification notification);
-
   Future<void> cancel(int notificationId);
-
   Future<List<PendingNotification>> pendingNotifications();
-
   Future<NotificationResponseData?> launchNotificationResponse();
 }
 
 abstract interface class NotificationCoordinatorContract {
   Stream<NotificationAction> get actions;
-
   Future<NotificationPermissionStatus> permissionStatus();
-
   Future<NotificationPermissionStatus> requestPermission();
-
   Future<ReminderScheduleStatus> schedule(
     TaskItem task, {
     bool requestPermission,
   });
-
   Future<void> cancel(String taskId);
-
   Future<ReminderScheduleStatus> snooze(TaskItem task);
-
   Future<NotificationAction?> launchAction();
-
   Future<NotificationReconcileReport> reconcile();
+  Future<void> dispose();
 }
 
 class NotificationReconcileReport {
@@ -117,15 +100,21 @@ class NotificationReconcileReport {
     required Iterable<String> scheduledMissingTaskIds,
     required Iterable<String> failedTaskIds,
     Iterable<String> recoveredTaskIds = const [],
-  }) : cancelledOrphanTaskIds = List.unmodifiable(cancelledOrphanTaskIds),
-       scheduledMissingTaskIds = List.unmodifiable(scheduledMissingTaskIds),
-       failedTaskIds = List.unmodifiable(failedTaskIds),
-       recoveredTaskIds = List.unmodifiable(recoveredTaskIds);
+    Iterable<String> capacityLimitedTaskIds = const [],
+  }) : cancelledOrphanTaskIds = _sorted(cancelledOrphanTaskIds),
+       scheduledMissingTaskIds = _sorted(scheduledMissingTaskIds),
+       failedTaskIds = _sorted(failedTaskIds),
+       recoveredTaskIds = _sorted(recoveredTaskIds),
+       capacityLimitedTaskIds = _sorted(capacityLimitedTaskIds);
 
   final List<String> cancelledOrphanTaskIds;
   final List<String> scheduledMissingTaskIds;
   final List<String> failedTaskIds;
   final List<String> recoveredTaskIds;
+  final List<String> capacityLimitedTaskIds;
+
+  static List<String> _sorted(Iterable<String> values) =>
+      List.unmodifiable(values.toSet().toList()..sort());
 }
 
 class NotificationCoordinator implements NotificationCoordinatorContract {
@@ -133,19 +122,26 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
     required NotificationPlatform platform,
     required TaskRepository repository,
     required tz.Location location,
+    Future<tz.Location> Function()? locationProvider,
     DateTime Function()? now,
+    this.maxPending = 64,
   }) : _platform = platform,
        _repository = repository,
        _location = location,
+       _locationProvider = locationProvider,
        _now = now ?? DateTime.now;
 
   final NotificationPlatform _platform;
   final TaskRepository _repository;
-  final tz.Location _location;
+  final Future<tz.Location> Function()? _locationProvider;
   final DateTime Function() _now;
+  final int maxPending;
   final StreamController<NotificationAction> _actions =
       StreamController<NotificationAction>.broadcast();
+  tz.Location _location;
   NotificationResponseData? _launchResponse;
+  Future<void> _reconcileQueue = Future.value();
+  bool _disposed = false;
 
   @override
   Stream<NotificationAction> get actions => _actions.stream;
@@ -163,6 +159,11 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
   Future<NotificationPermissionStatus> requestPermission() =>
       _platform.requestPermission();
 
+  Future<void> _refreshLocation() async {
+    final provider = _locationProvider;
+    if (provider != null) _location = await provider();
+  }
+
   @override
   Future<ReminderScheduleStatus> schedule(
     TaskItem task, {
@@ -176,7 +177,15 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
     if (permission != NotificationPermissionStatus.granted) {
       return ReminderScheduleStatus.permissionDenied;
     }
-    return _replaceTaskNotifications(task);
+    await _refreshLocation();
+    if (_candidatesFor(task, now: _now()).isEmpty) {
+      return ReminderScheduleStatus.noOccurrence;
+    }
+    final report = await _queueReconcile(overrideTask: task);
+    if (report.failedTaskIds.contains(task.id)) {
+      throw StateError('Reminder scheduling failed for ${task.id}.');
+    }
+    return ReminderScheduleStatus.scheduled;
   }
 
   @override
@@ -186,7 +195,7 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
       taskNotificationId(taskId),
       taskSnoozeNotificationId(taskId),
       for (final pending in await _platform.pendingNotifications())
-        if (parseTaskNotificationPayload(pending.payload) == taskId) pending.id,
+        if (_parseTaskActionPayload(pending.payload) == taskId) pending.id,
     };
     for (final id in ids) {
       try {
@@ -200,20 +209,21 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
 
   @override
   Future<ReminderScheduleStatus> snooze(TaskItem task) async {
-    final permission = await _platform.getPermissionStatus();
-    if (permission != NotificationPermissionStatus.granted) {
+    if (await _platform.getPermissionStatus() !=
+        NotificationPermissionStatus.granted) {
       return ReminderScheduleStatus.permissionDenied;
     }
-    final scheduledDate = tz.TZDateTime.from(
+    await _refreshLocation();
+    final date = tz.TZDateTime.from(
       _now().add(const Duration(minutes: 10)),
       _location,
     );
     await _platform.schedule(
-      _notificationFor(
+      _notification(
         task,
-        scheduledDate: scheduledDate,
-        repeatRule: RepeatRule.none,
         id: taskSnoozeNotificationId(task.id),
+        date: date,
+        repeatRule: RepeatRule.none,
         payload: taskSnoozeNotificationPayload(task.id),
       ),
     );
@@ -221,177 +231,220 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
   }
 
   @override
-  Future<NotificationAction?> launchAction() async =>
-      _parseResponse(_launchResponse);
+  Future<NotificationAction?> launchAction() async {
+    final response = _launchResponse;
+    _launchResponse = null;
+    return _parseResponse(response);
+  }
 
   @override
-  Future<NotificationReconcileReport> reconcile() async {
-    final tasks = await _repository.loadTasks();
-    final now = _now();
-    final effectiveTasks = <String, TaskItem>{};
-    final expectedById = <int, ScheduledNotification>{};
-    final activeTaskIds = <String>{};
-    for (final task in tasks) {
-      if (task.completed) continue;
-      activeTaskIds.add(task.id);
-      if (task.reminderAt == null) continue;
-      final notifications = _notificationsForTask(task, now: now);
-      if (notifications.isEmpty) continue;
-      effectiveTasks[task.id] = task;
-      for (final notification in notifications) {
-        expectedById[notification.id] = notification;
+  Future<NotificationReconcileReport> reconcile() => _queueReconcile();
+
+  Future<NotificationReconcileReport> _queueReconcile({
+    TaskItem? overrideTask,
+  }) {
+    final completer = Completer<NotificationReconcileReport>();
+    _reconcileQueue = _reconcileQueue.then((_) async {
+      try {
+        completer.complete(await _reconcile(overrideTask: overrideTask));
+      } catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
       }
+    });
+    return completer.future;
+  }
+
+  Future<NotificationReconcileReport> _reconcile({
+    TaskItem? overrideTask,
+  }) async {
+    await _refreshLocation();
+    final loadedTasks = await _repository.loadTasks();
+    final tasks = overrideTask == null
+        ? loadedTasks
+        : [
+            for (final task in loadedTasks)
+              if (task.id == overrideTask.id) overrideTask else task,
+            if (!loadedTasks.any((task) => task.id == overrideTask.id))
+              overrideTask,
+          ];
+    final activeTaskIds = tasks
+        .where((task) => !task.completed)
+        .map((task) => task.id)
+        .toSet();
+    final pending = await _platform.pendingNotifications();
+    final activeSnoozeCount = pending
+        .where(
+          (item) => activeTaskIds.contains(
+            _parseTaskPayload(item.payload, acceptedType: 'task_snooze'),
+          ),
+        )
+        .length;
+    final availableReminderSlots = (maxPending - activeSnoozeCount).clamp(
+      0,
+      maxPending,
+    );
+    final plans = <_TaskPlan>[];
+    for (final task in tasks) {
+      final candidates = _candidatesFor(task, now: _now());
+      if (candidates.isNotEmpty) plans.add(_TaskPlan(task, candidates));
     }
 
-    final pending = await _platform.pendingNotifications();
+    final first = [for (final plan in plans) plan.candidates.first]
+      ..sort(_compareCandidate);
+    final selected = first.take(availableReminderSlots).toList();
+    final selectedTaskIds = selected.map((item) => item.task.id).toSet();
+    final capacity = plans
+        .where((plan) => !selectedTaskIds.contains(plan.task.id))
+        .map((plan) => plan.task.id)
+        .toSet();
+    final remaining = availableReminderSlots - selected.length;
+    if (remaining > 0) {
+      final extras = <_Candidate>[
+        for (final plan in plans)
+          if (selectedTaskIds.contains(plan.task.id))
+            ...plan.candidates.skip(1),
+      ]..sort(_compareCandidate);
+      selected.addAll(extras.take(remaining));
+    }
+
+    final expected = await _materialize(selected);
+    final expectedById = {for (final item in expected) item.id: item};
     final pendingExpectedIds = <int>{};
-    final cancelled = <String>[];
-    for (final notification in pending) {
-      final taskId = parseTaskNotificationPayload(notification.payload);
+    final cancelled = <String>{};
+    for (final item in pending) {
+      final taskId = parseTaskNotificationPayload(item.payload);
       if (taskId != null) {
-        if (!expectedById.containsKey(notification.id)) {
-          await _platform.cancel(notification.id);
+        if (!expectedById.containsKey(item.id)) {
+          await _platform.cancel(item.id);
           cancelled.add(taskId);
         } else {
-          pendingExpectedIds.add(notification.id);
+          pendingExpectedIds.add(item.id);
         }
         continue;
       }
-      final snoozedTaskId = _parseTaskPayload(
-        notification.payload,
+      final snoozeTaskId = _parseTaskPayload(
+        item.payload,
         acceptedType: 'task_snooze',
       );
-      if (snoozedTaskId != null && !activeTaskIds.contains(snoozedTaskId)) {
-        await _platform.cancel(notification.id);
-        cancelled.add(snoozedTaskId);
+      if (snoozeTaskId != null && !activeTaskIds.contains(snoozeTaskId)) {
+        await _platform.cancel(item.id);
+        cancelled.add(snoozeTaskId);
       }
     }
 
     final permission = await _platform.getPermissionStatus();
-    final scheduled = <String>[];
-    final failed = <String>[];
-    final recovered = <String>[];
-    for (final entry in effectiveTasks.entries) {
-      final expected = expectedById.values
-          .where((notification) => notification.taskId == entry.key)
+    final scheduled = <String>{};
+    final failed = <String>{...capacity};
+    final expectedByTask = <String, List<ScheduledNotification>>{};
+    for (final item in expected) {
+      expectedByTask.putIfAbsent(item.taskId, () => []).add(item);
+    }
+    for (final plan in plans) {
+      if (capacity.contains(plan.task.id)) continue;
+      final missing = expectedByTask[plan.task.id]!
+          .where((item) => !pendingExpectedIds.contains(item.id))
           .toList();
-      final missing = expected
-          .where(
-            (notification) => !pendingExpectedIds.contains(notification.id),
-          )
-          .toList();
-      if (missing.isEmpty) {
-        await _setSchedulingFailed(entry.value, failed: false);
-        if (entry.value.reminderSchedulingFailed) recovered.add(entry.key);
-        continue;
-      }
+      if (missing.isEmpty) continue;
       if (permission != NotificationPermissionStatus.granted) {
-        await _setSchedulingFailed(entry.value, failed: true);
-        failed.add(entry.key);
+        failed.add(plan.task.id);
         continue;
       }
       try {
-        for (final notification in missing) {
-          await _platform.schedule(notification);
+        for (final item in missing) {
+          await _platform.schedule(item);
         }
-        scheduled.add(entry.key);
-        await _setSchedulingFailed(entry.value, failed: false);
-        if (entry.value.reminderSchedulingFailed) recovered.add(entry.key);
+        scheduled.add(plan.task.id);
       } catch (_) {
-        await _setSchedulingFailed(entry.value, failed: true);
-        failed.add(entry.key);
+        failed.add(plan.task.id);
       }
     }
-
-    cancelled.sort();
-    scheduled.sort();
-    failed.sort();
-    recovered.sort();
+    final recovered = <String>{
+      for (final plan in plans)
+        if (plan.task.reminderSchedulingFailed &&
+            !failed.contains(plan.task.id))
+          plan.task.id,
+    };
     return NotificationReconcileReport(
       cancelledOrphanTaskIds: cancelled,
       scheduledMissingTaskIds: scheduled,
       failedTaskIds: failed,
       recoveredTaskIds: recovered,
+      capacityLimitedTaskIds: capacity,
     );
   }
 
-  Future<ReminderScheduleStatus> _replaceTaskNotifications(
-    TaskItem task,
-  ) async {
-    final expected = _notificationsForTask(task, now: _now());
-    if (expected.isEmpty) {
-      return ReminderScheduleStatus.noOccurrence;
-    }
-    final expectedIds = expected.map((notification) => notification.id).toSet();
-    for (final pending in await _platform.pendingNotifications()) {
-      if (parseTaskNotificationPayload(pending.payload) == task.id &&
-          !expectedIds.contains(pending.id)) {
-        await _platform.cancel(pending.id);
-      }
-    }
-    for (final notification in expected) {
-      await _platform.schedule(notification);
-    }
-    return ReminderScheduleStatus.scheduled;
-  }
-
-  List<ScheduledNotification> _notificationsForTask(
-    TaskItem task, {
-    required DateTime now,
-  }) {
-    if (task.reminderAt == null || task.completed) return const [];
-    if (task.repeatRule == RepeatRule.monthly) {
-      return monthlyTaskNotifications(
-        task: task,
-        now: now,
-        location: _location,
-      );
-    }
-    final occurrences = reminderOccurrences(
-      anchor: task.reminderAt!,
+  List<_Candidate> _candidatesFor(TaskItem task, {required DateTime now}) {
+    if (task.completed || task.reminderAt == null) return const [];
+    final anchor =
+        task.reminderAnchor ??
+        ReminderAnchor.fromLocal(
+          tz.TZDateTime.from(task.reminderAt!, _location),
+        );
+    final occurrences = reminderOccurrencesForAnchor(
+      anchor: anchor,
       repeatRule: task.repeatRule,
       now: now,
       location: _location,
+      monthlyCount: maxPending,
     );
     return [
-      for (final occurrence in occurrences)
-        _notificationFor(
-          task,
-          scheduledDate: occurrence,
-          repeatRule: task.repeatRule,
+      for (var index = 0; index < occurrences.length; index++)
+        _Candidate(
+          task: task,
+          occurrenceKey: task.repeatRule == RepeatRule.monthly
+              ? 'monthly:${_localKey(occurrences[index])}'
+              : task.repeatRule.name,
+          date: occurrences[index],
+          repeatRule: task.repeatRule == RepeatRule.monthly
+              ? RepeatRule.none
+              : task.repeatRule,
         ),
     ];
   }
 
-  ScheduledNotification _notificationFor(
+  Future<List<ScheduledNotification>> _materialize(
+    Iterable<_Candidate> candidates,
+  ) async {
+    final result = <ScheduledNotification>[];
+    for (final candidate in candidates) {
+      final id = await _repository.notificationIdFor(
+        taskId: candidate.task.id,
+        occurrenceKey: candidate.occurrenceKey,
+      );
+      result.add(
+        _notification(
+          candidate.task,
+          id: id,
+          date: candidate.date,
+          repeatRule: candidate.repeatRule,
+          payload: taskNotificationPayload(candidate.task.id),
+        ),
+      );
+    }
+    return result;
+  }
+
+  ScheduledNotification _notification(
     TaskItem task, {
-    required tz.TZDateTime scheduledDate,
+    required int id,
+    required tz.TZDateTime date,
     required RepeatRule repeatRule,
-    int? id,
-    String? payload,
+    required String payload,
   }) {
     return ScheduledNotification(
-      id: id ?? taskNotificationId(task.id),
+      id: id,
       taskId: task.id,
       title: task.title,
       body: task.notes.isEmpty ? 'LessDo reminder' : task.notes,
-      payload: payload ?? taskNotificationPayload(task.id),
-      scheduledDate: scheduledDate,
+      payload: payload,
+      scheduledDate: date,
       repeatRule: repeatRule,
     );
   }
 
-  Future<void> _setSchedulingFailed(
-    TaskItem task, {
-    required bool failed,
-  }) async {
-    if (task.reminderSchedulingFailed == failed) return;
-    await _repository.saveTask(task.copyWith(reminderSchedulingFailed: failed));
-  }
-
   void _handleResponse(NotificationResponseData response) {
     final action = _parseResponse(response);
-    if (action != null) _actions.add(action);
+    if (action != null && !_disposed) _actions.add(action);
   }
 
   NotificationAction? _parseResponse(NotificationResponseData? response) {
@@ -405,7 +458,48 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
       _ => null,
     };
   }
+
+  @override
+  Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    await _actions.close();
+  }
 }
+
+class _TaskPlan {
+  const _TaskPlan(this.task, this.candidates);
+  final TaskItem task;
+  final List<_Candidate> candidates;
+}
+
+class _Candidate {
+  const _Candidate({
+    required this.task,
+    required this.occurrenceKey,
+    required this.date,
+    required this.repeatRule,
+  });
+  final TaskItem task;
+  final String occurrenceKey;
+  final tz.TZDateTime date;
+  final RepeatRule repeatRule;
+}
+
+int _compareCandidate(_Candidate first, _Candidate second) {
+  final date = first.date.compareTo(second.date);
+  if (date != 0) return date;
+  final task = first.task.id.compareTo(second.task.id);
+  if (task != 0) return task;
+  return first.occurrenceKey.compareTo(second.occurrenceKey);
+}
+
+String _localKey(DateTime value) =>
+    '${value.year.toString().padLeft(4, '0')}-'
+    '${value.month.toString().padLeft(2, '0')}-'
+    '${value.day.toString().padLeft(2, '0')}T'
+    '${value.hour.toString().padLeft(2, '0')}:'
+    '${value.minute.toString().padLeft(2, '0')}';
 
 int taskNotificationId(String taskId) =>
     stableNotificationId(NotificationIdNamespace.task, taskId);
@@ -432,14 +526,43 @@ String taskMonthlyNotificationPayload(String taskId, DateTime occurrence) =>
 String taskSnoozeNotificationPayload(String taskId) =>
     jsonEncode({'type': 'task_snooze', 'taskId': taskId});
 
-String? parseTaskNotificationPayload(String? payload) {
-  return _parseTaskPayload(payload, acceptedType: 'task') ??
-      _parseMonthlyTaskPayload(payload);
+String? parseTaskNotificationPayload(String? payload) =>
+    _parseTaskPayload(payload, acceptedType: 'task') ??
+    _parseMonthlyTaskPayload(payload);
+
+String? _parseTaskActionPayload(String? payload) =>
+    parseTaskNotificationPayload(payload) ??
+    _parseTaskPayload(payload, acceptedType: 'task_snooze');
+
+String? _parseMonthlyTaskPayload(String? payload) {
+  final decoded = _decodePayload(payload);
+  if (decoded == null ||
+      decoded['type'] != 'task_monthly' ||
+      decoded['occurrenceUtc'] is! String) {
+    return null;
+  }
+  return _validTaskId(decoded['taskId']);
 }
 
-String? _parseTaskActionPayload(String? payload) {
-  return parseTaskNotificationPayload(payload) ??
-      _parseTaskPayload(payload, acceptedType: 'task_snooze');
+String? _parseTaskPayload(String? payload, {required String acceptedType}) {
+  final decoded = _decodePayload(payload);
+  if (decoded == null || decoded['type'] != acceptedType) return null;
+  return _validTaskId(decoded['taskId']);
+}
+
+Map<String, Object?>? _decodePayload(String? payload) {
+  if (payload == null || payload.length > 4096) return null;
+  try {
+    final value = jsonDecode(payload);
+    return value is Map ? Map<String, Object?>.from(value) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+String? _validTaskId(Object? value) {
+  if (value is! String || value.isEmpty || value.length > 256) return null;
+  return value;
 }
 
 List<ScheduledNotification> monthlyTaskNotifications({
@@ -447,13 +570,16 @@ List<ScheduledNotification> monthlyTaskNotifications({
   required DateTime now,
   required tz.Location location,
 }) {
-  final reminderAt = task.reminderAt;
-  if (reminderAt == null || task.completed) return const [];
-  final occurrences = reminderOccurrences(
-    anchor: reminderAt,
+  if (task.reminderAt == null || task.completed) return const [];
+  final anchor =
+      task.reminderAnchor ??
+      ReminderAnchor.fromLocal(tz.TZDateTime.from(task.reminderAt!, location));
+  final occurrences = reminderOccurrencesForAnchor(
+    anchor: anchor,
     repeatRule: RepeatRule.monthly,
     now: now,
     location: location,
+    monthlyCount: 12,
   );
   return [
     for (final occurrence in occurrences)
@@ -467,38 +593,4 @@ List<ScheduledNotification> monthlyTaskNotifications({
         repeatRule: RepeatRule.none,
       ),
   ];
-}
-
-String? _parseMonthlyTaskPayload(String? payload) {
-  if (payload == null || payload.isEmpty) return null;
-  try {
-    final decoded = jsonDecode(payload);
-    if (decoded is! Map<String, dynamic> ||
-        decoded.length != 3 ||
-        decoded['type'] != 'task_monthly' ||
-        decoded['occurrenceUtc'] is! String ||
-        DateTime.tryParse(decoded['occurrenceUtc'] as String) == null) {
-      return null;
-    }
-    final taskId = decoded['taskId'];
-    return taskId is String && taskId.isNotEmpty ? taskId : null;
-  } on FormatException {
-    return null;
-  }
-}
-
-String? _parseTaskPayload(String? payload, {required String acceptedType}) {
-  if (payload == null || payload.isEmpty) return null;
-  try {
-    final decoded = jsonDecode(payload);
-    if (decoded is! Map<String, dynamic> ||
-        decoded.length != 2 ||
-        decoded['type'] != acceptedType) {
-      return null;
-    }
-    final taskId = decoded['taskId'];
-    return taskId is String && taskId.isNotEmpty ? taskId : null;
-  } on FormatException {
-    return null;
-  }
 }

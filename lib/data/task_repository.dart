@@ -29,6 +29,13 @@ abstract interface class TaskRepository {
 
   Future<void> saveTask(TaskItem task);
 
+  Future<TaskItem?> patchReminderSchedulingState(String taskId, bool failed);
+
+  Future<int> notificationIdFor({
+    required String taskId,
+    required String occurrenceKey,
+  });
+
   Future<void> deleteTask(String taskId);
 
   Future<void> saveList(TaskList list);

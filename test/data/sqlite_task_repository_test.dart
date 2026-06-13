@@ -64,6 +64,59 @@ void main() {
     expect(loadedTask.toJson(), task.toJson());
   });
 
+  test(
+    'atomic reminder failure patch preserves concurrent task edits',
+    () async {
+      final original = _task('task-1');
+      await repository.saveTask(original);
+      await repository.saveTask(
+        original.copyWith(
+          title: 'Edited while reconciling',
+          completed: true,
+          completedAt: DateTime.utc(2026, 6, 14),
+        ),
+      );
+
+      await repository.patchReminderSchedulingState('task-1', true);
+
+      final loaded = (await repository.loadTasks()).single;
+      expect(loaded.title, 'Edited while reconciling');
+      expect(loaded.completed, isTrue);
+      expect(loaded.reminderSchedulingFailed, isTrue);
+    },
+  );
+
+  test(
+    'collision allocation is distinct and stable after repository restart',
+    () async {
+      final first = await repository.notificationIdFor(
+        taskId: 'task-83969',
+        occurrenceKey: 'daily',
+      );
+      final second = await repository.notificationIdFor(
+        taskId: 'task-120024',
+        occurrenceKey: 'daily',
+      );
+      final restarted = SqliteTaskRepository(database);
+
+      expect(first, isNot(second));
+      expect(
+        await restarted.notificationIdFor(
+          taskId: 'task-83969',
+          occurrenceKey: 'daily',
+        ),
+        first,
+      );
+      expect(
+        await restarted.notificationIdFor(
+          taskId: 'task-120024',
+          occurrenceKey: 'daily',
+        ),
+        second,
+      );
+    },
+  );
+
   test('failed multi-row save rolls back task and subtasks', () async {
     final original = TaskItem.create(
       id: 'task-1',

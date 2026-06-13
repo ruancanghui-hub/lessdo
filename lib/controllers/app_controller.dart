@@ -191,10 +191,26 @@ class AppController extends ChangeNotifier {
     await reconcileReminders();
   }
 
-  Future<void> reconcileReminders() async {
+  Future<void> reconcileReminders() => _enqueueMutation(_reconcileReminders);
+
+  Future<void> _reconcileReminders() async {
     try {
       final report = await _notifications.reconcile();
-      _applyReconcileReport(report);
+      final failedIds = report.failedTaskIds.toSet();
+      final recoveredIds = {
+        ...report.scheduledMissingTaskIds,
+        ...report.recoveredTaskIds,
+      }..removeAll(failedIds);
+      for (final taskId in failedIds) {
+        await _repository.patchReminderSchedulingState(taskId, true);
+      }
+      for (final taskId in recoveredIds) {
+        await _repository.patchReminderSchedulingState(taskId, false);
+      }
+      if (failedIds.isNotEmpty || recoveredIds.isNotEmpty) {
+        _publishSnapshot(await _repository.loadSnapshot());
+      }
+      _applyReconcileWarnings(report);
       notifyListeners();
     } catch (_) {
       _recordWarning('reconcileReminders', const []);
@@ -521,8 +537,15 @@ class AppController extends ChangeNotifier {
     required String operation,
     required TaskItem committedTask,
   }) async {
+    TaskItem? patchedTask;
     try {
-      await _repository.saveTask(task);
+      patchedTask = await _repository.patchReminderSchedulingState(
+        task.id,
+        task.reminderSchedulingFailed,
+      );
+      if (patchedTask == null) {
+        throw StateError('Task ${task.id} no longer exists.');
+      }
     } catch (error) {
       try {
         _publishSnapshot(await _repository.loadSnapshot());
@@ -537,7 +560,7 @@ class AppController extends ChangeNotifier {
         cause: error,
       );
     }
-    _publishTask(task);
+    _publishTask(patchedTask);
     notifyListeners();
   }
 
@@ -592,21 +615,8 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  void _applyReconcileReport(NotificationReconcileReport report) {
+  void _applyReconcileWarnings(NotificationReconcileReport report) {
     final failedIds = report.failedTaskIds.toSet();
-    final recoveredIds = {
-      ...report.scheduledMissingTaskIds,
-      ...report.recoveredTaskIds,
-    };
-    _tasks = List.unmodifiable([
-      for (final task in _tasks)
-        if (failedIds.contains(task.id))
-          task.copyWith(reminderSchedulingFailed: true)
-        else if (recoveredIds.contains(task.id))
-          task.copyWith(reminderSchedulingFailed: false)
-        else
-          task,
-    ]);
     if (failedIds.isNotEmpty) {
       _recordWarning('reconcileReminders', failedIds);
     }
@@ -675,6 +685,7 @@ class AppController extends ChangeNotifier {
   void dispose() {
     unawaited(_notificationSubscription.cancel());
     unawaited(_openTaskRequestController.close());
+    unawaited(_notifications.dispose());
     super.dispose();
   }
 

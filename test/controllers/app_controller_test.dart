@@ -10,6 +10,7 @@ import 'package:lessdo/models/focus_session.dart';
 import 'package:lessdo/models/task_item.dart';
 import 'package:lessdo/models/task_list.dart';
 import 'package:lessdo/notifications/notification_coordinator.dart';
+import 'package:lessdo/notifications/reminder_schedule.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -471,6 +472,41 @@ void main() {
       expect(controller.tasks.single.reminderSchedulingFailed, isFalse);
     },
   );
+
+  test(
+    'external edit during reconcile is preserved by atomic state patch',
+    () async {
+      final repository = _MemoryTaskRepository(tasks: [_task('task-1')]);
+      final notifications = _FakeNotificationCoordinator();
+      final controller = await _controller(
+        repository: repository,
+        notifications: notifications,
+      );
+      final started = Completer<void>();
+      final allow = Completer<void>();
+      notifications
+        ..nextReconcileStarted = started
+        ..allowNextReconcile = allow
+        ..failedTaskIds.add('task-1');
+
+      final reconciling = controller.reconcileReminders();
+      await started.future;
+      await repository.saveTask(
+        repository.tasks.single.copyWith(
+          title: 'Edited during reconcile',
+          completed: true,
+          completedAt: DateTime.utc(2026, 6, 14),
+        ),
+      );
+      allow.complete();
+      await reconciling;
+
+      final task = controller.tasks.single;
+      expect(task.title, 'Edited during reconcile');
+      expect(task.completed, isTrue);
+      expect(task.reminderSchedulingFailed, isTrue);
+    },
+  );
 }
 
 class _ThrowingTaskRepository extends _MemoryTaskRepository {
@@ -482,12 +518,21 @@ class _ThrowingTaskRepository extends _MemoryTaskRepository {
 
 class _FailSecondSaveTaskRepository extends _MemoryTaskRepository {
   var saveCalls = 0;
+  var patchCalls = 0;
 
   @override
   Future<void> saveTask(TaskItem task) async {
     saveCalls += 1;
-    if (saveCalls == 2) throw StateError('status write failed');
     await super.saveTask(task);
+  }
+
+  @override
+  Future<TaskItem?> patchReminderSchedulingState(
+    String taskId,
+    bool failed,
+  ) async {
+    patchCalls += 1;
+    throw StateError('status write failed');
   }
 }
 
@@ -541,6 +586,7 @@ class _MemoryTaskRepository implements TaskRepository {
   final List<TaskItem> _tasks;
   final List<FocusSession> _history = [];
   ActiveFocusSession? _activeFocus;
+  final Map<String, int> _notificationIds = {};
   bool failReads = false;
   bool failSnapshotAfterInitialLoad = false;
   int loadSnapshotCalls = 0;
@@ -631,6 +677,29 @@ class _MemoryTaskRepository implements TaskRepository {
       _tasks[index] = task;
     }
   }
+
+  @override
+  Future<TaskItem?> patchReminderSchedulingState(
+    String taskId,
+    bool failed,
+  ) async {
+    final index = _tasks.indexWhere((task) => task.id == taskId);
+    if (index == -1) return null;
+    _tasks[index] = _tasks[index].copyWith(reminderSchedulingFailed: failed);
+    return _tasks[index];
+  }
+
+  @override
+  Future<int> notificationIdFor({
+    required String taskId,
+    required String occurrenceKey,
+  }) async => _notificationIds.putIfAbsent(
+    '$taskId|$occurrenceKey',
+    () => stableNotificationId(
+      NotificationIdNamespace.task,
+      '$taskId:$occurrenceKey',
+    ),
+  );
 }
 
 class _FakeNotificationCoordinator implements NotificationCoordinatorContract {
@@ -647,6 +716,9 @@ class _FakeNotificationCoordinator implements NotificationCoordinatorContract {
   NotificationAction? launchNotificationAction;
   int reconcileCalls = 0;
   final Set<String> recoveredTaskIds = {};
+  final Set<String> failedTaskIds = {};
+  Completer<void>? nextReconcileStarted;
+  Completer<void>? allowNextReconcile;
 
   @override
   Stream<NotificationAction> get actions => actionController.stream;
@@ -702,12 +774,24 @@ class _FakeNotificationCoordinator implements NotificationCoordinatorContract {
   @override
   Future<NotificationReconcileReport> reconcile() async {
     reconcileCalls += 1;
+    if (nextReconcileStarted case final started?) {
+      nextReconcileStarted = null;
+      if (!started.isCompleted) started.complete();
+      final allow = allowNextReconcile;
+      allowNextReconcile = null;
+      if (allow != null) await allow.future;
+    }
     return NotificationReconcileReport(
       cancelledOrphanTaskIds: const [],
       scheduledMissingTaskIds: const [],
-      failedTaskIds: const [],
+      failedTaskIds: failedTaskIds,
       recoveredTaskIds: recoveredTaskIds,
     );
+  }
+
+  @override
+  Future<void> dispose() async {
+    await actionController.close();
   }
 }
 

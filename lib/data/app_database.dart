@@ -50,7 +50,7 @@ class AppDatabase {
     Future<void> Function(Database database) closeDatabase,
   ) : _closeDatabase = (() => closeDatabase(_database));
 
-  static const schemaVersion = 1;
+  static const schemaVersion = 2;
   static const _databaseFileName = 'lessdo.sqlite3';
 
   final Database _database;
@@ -74,6 +74,7 @@ class AppDatabase {
           await database.execute('PRAGMA foreign_keys = ON');
         },
         onCreate: _createSchema,
+        onUpgrade: _upgradeSchema,
       ),
     );
     final appDatabase = AppDatabase._(
@@ -119,6 +120,10 @@ class AppDatabase {
         updated_at_utc INTEGER NOT NULL,
         due_at_utc INTEGER,
         reminder_at_utc INTEGER,
+        reminder_local_date TEXT,
+        reminder_local_hour INTEGER,
+        reminder_local_minute INTEGER,
+        reminder_time_zone_id TEXT,
         notes TEXT NOT NULL DEFAULT '',
         priority TEXT NOT NULL,
         repeat_rule TEXT NOT NULL,
@@ -127,6 +132,14 @@ class AppDatabase {
         completed INTEGER NOT NULL DEFAULT 0,
         completed_at_utc INTEGER,
         reminder_scheduling_failed INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await database.execute('''
+      CREATE TABLE notification_ids (
+        task_id TEXT NOT NULL,
+        occurrence_key TEXT NOT NULL,
+        notification_id INTEGER NOT NULL UNIQUE,
+        PRIMARY KEY(task_id, occurrence_key)
       )
     ''');
     await database.execute('''
@@ -180,6 +193,53 @@ class AppDatabase {
       'kind': 'standard',
       'sort_order': 0,
     });
+  }
+
+  static Future<void> _upgradeSchema(
+    Database database,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    if (oldVersion >= 2) return;
+    await database.execute('ALTER TABLE tasks ADD reminder_local_date TEXT');
+    await database.execute('ALTER TABLE tasks ADD reminder_local_hour INTEGER');
+    await database.execute(
+      'ALTER TABLE tasks ADD reminder_local_minute INTEGER',
+    );
+    await database.execute('ALTER TABLE tasks ADD reminder_time_zone_id TEXT');
+    await database.execute('''
+      CREATE TABLE notification_ids (
+        task_id TEXT NOT NULL,
+        occurrence_key TEXT NOT NULL,
+        notification_id INTEGER NOT NULL UNIQUE,
+        PRIMARY KEY(task_id, occurrence_key)
+      )
+    ''');
+    final rows = await database.query(
+      'tasks',
+      columns: ['id', 'reminder_at_utc'],
+      where: 'reminder_at_utc IS NOT NULL',
+    );
+    for (final row in rows) {
+      final local = DateTime.fromMicrosecondsSinceEpoch(
+        row['reminder_at_utc']! as int,
+        isUtc: true,
+      ).toLocal();
+      await database.update(
+        'tasks',
+        {
+          'reminder_local_date':
+              '${local.year.toString().padLeft(4, '0')}-'
+              '${local.month.toString().padLeft(2, '0')}-'
+              '${local.day.toString().padLeft(2, '0')}',
+          'reminder_local_hour': local.hour,
+          'reminder_local_minute': local.minute,
+          'reminder_time_zone_id': 'legacy-system-local',
+        },
+        where: 'id = ?',
+        whereArgs: [row['id']],
+      );
+    }
   }
 
   static Future<List<String>> _quickCheck(Database database) async {

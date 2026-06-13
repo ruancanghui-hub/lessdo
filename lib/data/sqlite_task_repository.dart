@@ -6,6 +6,7 @@ import '../models/active_focus_session.dart';
 import '../models/focus_session.dart';
 import '../models/task_item.dart';
 import '../models/task_list.dart';
+import '../notifications/reminder_schedule.dart';
 import 'app_database.dart';
 import 'task_repository.dart';
 
@@ -89,6 +90,77 @@ class SqliteTaskRepository implements TaskRepository {
   Future<void> saveTask(TaskItem task) {
     return _database.transaction((transaction) async {
       await _writeTask(transaction, task);
+    });
+  }
+
+  @override
+  Future<TaskItem?> patchReminderSchedulingState(
+    String taskId,
+    bool failed,
+  ) async {
+    return _database.transaction((transaction) async {
+      final updated = await transaction.update(
+        'tasks',
+        {'reminder_scheduling_failed': failed ? 1 : 0},
+        where: 'id = ?',
+        whereArgs: [taskId],
+      );
+      if (updated == 0) return null;
+      final rows = await transaction.query(
+        'tasks',
+        where: 'id = ?',
+        whereArgs: [taskId],
+      );
+      final subtaskRows = await transaction.query(
+        'subtasks',
+        where: 'task_id = ?',
+        whereArgs: [taskId],
+        orderBy: 'sort_order, id',
+      );
+      return _taskFromRow(
+        rows.single,
+        List.unmodifiable(subtaskRows.map(_subtaskFromRow)),
+      );
+    });
+  }
+
+  @override
+  Future<int> notificationIdFor({
+    required String taskId,
+    required String occurrenceKey,
+  }) {
+    return _database.transaction((transaction) async {
+      final existing = await transaction.query(
+        'notification_ids',
+        columns: ['notification_id'],
+        where: 'task_id = ? AND occurrence_key = ?',
+        whereArgs: [taskId, occurrenceKey],
+      );
+      if (existing.isNotEmpty) {
+        return existing.single['notification_id']! as int;
+      }
+      var candidate = stableNotificationId(
+        NotificationIdNamespace.task,
+        taskId,
+      );
+      while (true) {
+        final collision = await transaction.query(
+          'notification_ids',
+          columns: ['notification_id'],
+          where: 'notification_id = ?',
+          whereArgs: [candidate],
+          limit: 1,
+        );
+        if (collision.isEmpty) {
+          await transaction.insert('notification_ids', {
+            'task_id': taskId,
+            'occurrence_key': occurrenceKey,
+            'notification_id': candidate,
+          });
+          return candidate;
+        }
+        candidate = candidate == 0x3fffffff ? 1 : candidate + 1;
+      }
     });
   }
 
@@ -246,6 +318,10 @@ Map<String, Object?> _taskToRow(TaskItem task) => {
   'updated_at_utc': _micros(task.updatedAt),
   'due_at_utc': _optionalMicros(task.dueAt),
   'reminder_at_utc': _optionalMicros(task.reminderAt),
+  'reminder_local_date': task.reminderAnchor?.localDate,
+  'reminder_local_hour': task.reminderAnchor?.hour,
+  'reminder_local_minute': task.reminderAnchor?.minute,
+  'reminder_time_zone_id': task.reminderAnchor?.timeZoneId,
   'notes': task.notes,
   'priority': task.priority.name,
   'repeat_rule': task.repeatRule.name,
@@ -256,25 +332,38 @@ Map<String, Object?> _taskToRow(TaskItem task) => {
   'reminder_scheduling_failed': task.reminderSchedulingFailed ? 1 : 0,
 };
 
-TaskItem _taskFromRow(Map<String, Object?> row, List<SubTask> subtasks) =>
-    TaskItem(
-      id: row['id']! as String,
-      title: row['title']! as String,
-      listId: row['list_id']! as String,
-      createdAt: _dateFromMicros(row['created_at_utc']! as int),
-      updatedAt: _dateFromMicros(row['updated_at_utc']! as int),
-      dueAt: _optionalDateFromMicros(row['due_at_utc']),
-      reminderAt: _optionalDateFromMicros(row['reminder_at_utc']),
-      notes: row['notes']! as String,
-      priority: TaskPriority.values.byName(row['priority']! as String),
-      repeatRule: RepeatRule.values.byName(row['repeat_rule']! as String),
-      category: row['category']! as String,
-      subtasks: subtasks,
-      completed: row['completed'] == 1,
-      completedAt: _optionalDateFromMicros(row['completed_at_utc']),
-      sortOrder: row['sort_order']! as int,
-      reminderSchedulingFailed: row['reminder_scheduling_failed'] == 1,
-    );
+TaskItem _taskFromRow(Map<String, Object?> row, List<SubTask> subtasks) {
+  final localDate = row['reminder_local_date'] as String?;
+  final localParts = localDate?.split('-').map(int.parse).toList();
+  return TaskItem(
+    id: row['id']! as String,
+    title: row['title']! as String,
+    listId: row['list_id']! as String,
+    createdAt: _dateFromMicros(row['created_at_utc']! as int),
+    updatedAt: _dateFromMicros(row['updated_at_utc']! as int),
+    dueAt: _optionalDateFromMicros(row['due_at_utc']),
+    reminderAt: _optionalDateFromMicros(row['reminder_at_utc']),
+    reminderAnchor: localParts == null
+        ? null
+        : ReminderAnchor(
+            year: localParts[0],
+            month: localParts[1],
+            day: localParts[2],
+            hour: row['reminder_local_hour']! as int,
+            minute: row['reminder_local_minute']! as int,
+            timeZoneId: row['reminder_time_zone_id'] as String?,
+          ),
+    notes: row['notes']! as String,
+    priority: TaskPriority.values.byName(row['priority']! as String),
+    repeatRule: RepeatRule.values.byName(row['repeat_rule']! as String),
+    category: row['category']! as String,
+    subtasks: subtasks,
+    completed: row['completed'] == 1,
+    completedAt: _optionalDateFromMicros(row['completed_at_utc']),
+    sortOrder: row['sort_order']! as int,
+    reminderSchedulingFailed: row['reminder_scheduling_failed'] == 1,
+  );
+}
 
 Map<String, Object?> _subtaskToRow(
   String taskId,

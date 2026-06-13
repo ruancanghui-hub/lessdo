@@ -13,15 +13,43 @@ tz.TZDateTime? nextReminderOccurrence({
   required tz.Location location,
 }) {
   final localAnchor = tz.TZDateTime.from(anchor, location);
+  return nextReminderOccurrenceForAnchor(
+    anchor: ReminderAnchor(
+      year: localAnchor.year,
+      month: localAnchor.month,
+      day: localAnchor.day,
+      hour: localAnchor.hour,
+      minute: localAnchor.minute,
+    ),
+    repeatRule: repeatRule,
+    now: now,
+    location: location,
+  );
+}
+
+tz.TZDateTime? nextReminderOccurrenceForAnchor({
+  required ReminderAnchor anchor,
+  required RepeatRule repeatRule,
+  required DateTime now,
+  required tz.Location location,
+}) {
   final localNow = tz.TZDateTime.from(now, location);
-  if (localAnchor.isAfter(localNow)) return localAnchor;
+  final localAnchor = _validWallTime(
+    location,
+    anchor.year,
+    anchor.month,
+    anchor.day,
+    anchor.hour,
+    anchor.minute,
+  );
+  if (localAnchor != null && localAnchor.isAfter(localNow)) return localAnchor;
   if (repeatRule == RepeatRule.none) return null;
 
   return switch (repeatRule) {
     RepeatRule.none => null,
-    RepeatRule.daily => _nextDaily(localAnchor, localNow, location),
-    RepeatRule.weekly => _nextWeekly(localAnchor, localNow, location),
-    RepeatRule.monthly => _nextMonthly(localAnchor, localNow, location),
+    RepeatRule.daily => _nextDaily(anchor, localNow, location),
+    RepeatRule.weekly => _nextWeekly(anchor, localNow, location),
+    RepeatRule.monthly => _nextMonthly(anchor, localNow, location),
   };
 }
 
@@ -49,7 +77,37 @@ List<tz.TZDateTime> reminderOccurrences({
         location,
         first.year,
         first.month + offset,
-        localAnchor,
+        anchorDay: localAnchor.day,
+        hour: localAnchor.hour,
+        minute: localAnchor.minute,
+      ),
+  ];
+}
+
+List<tz.TZDateTime> reminderOccurrencesForAnchor({
+  required ReminderAnchor anchor,
+  required RepeatRule repeatRule,
+  required DateTime now,
+  required tz.Location location,
+  int monthlyCount = 64,
+}) {
+  final first = nextReminderOccurrenceForAnchor(
+    anchor: anchor,
+    repeatRule: repeatRule,
+    now: now,
+    location: location,
+  );
+  if (first == null) return const [];
+  if (repeatRule != RepeatRule.monthly) return [first];
+  return [
+    for (var offset = 0; offset < monthlyCount; offset++)
+      _monthlyCandidate(
+        location,
+        first.year,
+        first.month + offset,
+        anchorDay: anchor.day,
+        hour: anchor.hour,
+        minute: anchor.minute,
       ),
   ];
 }
@@ -68,68 +126,78 @@ int stableNotificationId(NotificationIdNamespace namespace, String value) {
 }
 
 tz.TZDateTime _nextDaily(
-  tz.TZDateTime anchor,
+  ReminderAnchor anchor,
   tz.TZDateTime now,
   tz.Location location,
 ) {
-  var candidate = _withDate(location, now.year, now.month, now.day, anchor);
-  if (!candidate.isAfter(now)) {
-    final tomorrow = tz.TZDateTime(location, now.year, now.month, now.day + 1);
-    candidate = _withDate(
+  for (var offset = 0; ; offset++) {
+    final date = tz.TZDateTime(location, now.year, now.month, now.day + offset);
+    final candidate = _validWallTime(
       location,
-      tomorrow.year,
-      tomorrow.month,
-      tomorrow.day,
-      anchor,
+      date.year,
+      date.month,
+      date.day,
+      anchor.hour,
+      anchor.minute,
     );
+    if (candidate != null && candidate.isAfter(now)) return candidate;
   }
-  return candidate;
 }
 
 tz.TZDateTime _nextWeekly(
-  tz.TZDateTime anchor,
+  ReminderAnchor anchor,
   tz.TZDateTime now,
   tz.Location location,
 ) {
-  final daysUntilAnchor = (anchor.weekday - now.weekday) % 7;
+  final anchorWeekday = DateTime(anchor.year, anchor.month, anchor.day).weekday;
+  final daysUntilAnchor = (anchorWeekday - now.weekday) % 7;
   final date = tz.TZDateTime(
     location,
     now.year,
     now.month,
     now.day + daysUntilAnchor,
   );
-  var candidate = _withDate(location, date.year, date.month, date.day, anchor);
-  if (!candidate.isAfter(now)) {
-    final nextWeek = tz.TZDateTime(
+  for (var weeks = 0; ; weeks++) {
+    final weekDate = tz.TZDateTime(
       location,
       date.year,
       date.month,
-      date.day + 7,
+      date.day + weeks * 7,
     );
-    candidate = _withDate(
+    final candidate = _validWallTime(
       location,
-      nextWeek.year,
-      nextWeek.month,
-      nextWeek.day,
-      anchor,
+      weekDate.year,
+      weekDate.month,
+      weekDate.day,
+      anchor.hour,
+      anchor.minute,
     );
+    if (candidate != null && candidate.isAfter(now)) return candidate;
   }
-  return candidate;
 }
 
 tz.TZDateTime _nextMonthly(
-  tz.TZDateTime anchor,
+  ReminderAnchor anchor,
   tz.TZDateTime now,
   tz.Location location,
 ) {
-  var candidate = _monthlyCandidate(location, now.year, now.month, anchor);
+  var candidate = _monthlyCandidate(
+    location,
+    now.year,
+    now.month,
+    anchorDay: anchor.day,
+    hour: anchor.hour,
+    minute: anchor.minute,
+  );
   if (!candidate.isAfter(now)) {
     final nextMonth = tz.TZDateTime(location, now.year, now.month + 1);
     candidate = _monthlyCandidate(
       location,
       nextMonth.year,
       nextMonth.month,
-      anchor,
+      anchorDay: anchor.day,
+      hour: anchor.hour,
+      minute: anchor.minute,
     );
   }
   return candidate;
@@ -138,30 +206,30 @@ tz.TZDateTime _nextMonthly(
 tz.TZDateTime _monthlyCandidate(
   tz.Location location,
   int year,
-  int month,
-  tz.TZDateTime anchor,
-) {
+  int month, {
+  required int anchorDay,
+  required int hour,
+  required int minute,
+}) {
   final lastDay = tz.TZDateTime(location, year, month + 1, 0).day;
-  final day = anchor.day > lastDay ? lastDay : anchor.day;
-  return _withDate(location, year, month, day, anchor);
+  final day = anchorDay > lastDay ? lastDay : anchorDay;
+  return tz.TZDateTime(location, year, month, day, hour, minute);
 }
 
-tz.TZDateTime _withDate(
+tz.TZDateTime? _validWallTime(
   tz.Location location,
   int year,
   int month,
   int day,
-  tz.TZDateTime time,
+  int hour,
+  int minute,
 ) {
-  return tz.TZDateTime(
-    location,
-    year,
-    month,
-    day,
-    time.hour,
-    time.minute,
-    time.second,
-    time.millisecond,
-    time.microsecond,
-  );
+  final candidate = tz.TZDateTime(location, year, month, day, hour, minute);
+  return candidate.year == year &&
+          candidate.month == month &&
+          candidate.day == day &&
+          candidate.hour == hour &&
+          candidate.minute == minute
+      ? candidate
+      : null;
 }

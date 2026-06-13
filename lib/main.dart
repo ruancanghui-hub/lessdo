@@ -26,6 +26,15 @@ Future<void> main() async {
     platform: notificationPlatform,
     repository: repository,
     location: timeZone.location,
+    locationProvider: () async {
+      final refreshed = await initializeNotificationTimeZone();
+      if (refreshed.warning != null) {
+        debugPrint(
+          'Notification timezone fallback: ${refreshed.warning!.cause}',
+        );
+      }
+      return refreshed.location;
+    },
   );
   await notifications.initialize();
 

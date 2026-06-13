@@ -24,7 +24,7 @@ void main() {
     expect(await database.rawQuery('SELECT id FROM tasks'), isEmpty);
   });
 
-  test('creates the complete version 1 schema', () async {
+  test('creates the complete version 2 schema', () async {
     final rows = await database.rawQuery(
       "SELECT name FROM sqlite_master WHERE type = 'table' "
       "AND name NOT LIKE 'sqlite_%' ORDER BY name",
@@ -33,10 +33,81 @@ void main() {
     expect(rows.map((row) => row['name']), [
       'active_focus',
       'focus_history',
+      'notification_ids',
       'subtasks',
       'task_lists',
       'tasks',
     ]);
+  });
+
+  test('upgrades version 1 without losing tasks', () async {
+    final testPath = await createTestDatabasePath();
+    final legacy = await databaseFactoryFfi.openDatabase(
+      testPath.path,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (db, _) async {
+          await db.execute('''
+            CREATE TABLE task_lists (
+              id TEXT PRIMARY KEY, name TEXT NOT NULL, color_value INTEGER NOT NULL,
+              kind TEXT NOT NULL, sort_order INTEGER NOT NULL
+            )
+          ''');
+          await db.execute('''
+            CREATE TABLE tasks (
+              id TEXT PRIMARY KEY, title TEXT NOT NULL, list_id TEXT NOT NULL,
+              created_at_utc INTEGER NOT NULL, updated_at_utc INTEGER NOT NULL,
+              due_at_utc INTEGER, reminder_at_utc INTEGER, notes TEXT NOT NULL,
+              priority TEXT NOT NULL, repeat_rule TEXT NOT NULL, category TEXT NOT NULL,
+              sort_order INTEGER NOT NULL, completed INTEGER NOT NULL,
+              completed_at_utc INTEGER, reminder_scheduling_failed INTEGER NOT NULL
+            )
+          ''');
+          await db.insert('task_lists', {
+            'id': 'inbox',
+            'name': 'Inbox',
+            'color_value': 0,
+            'kind': 'standard',
+            'sort_order': 0,
+          });
+          await db.insert('tasks', {
+            ...validTaskRow(id: 'legacy'),
+            'notes': '',
+            'category': '',
+            'completed': 0,
+            'reminder_scheduling_failed': 0,
+          });
+        },
+      ),
+    );
+    await legacy.close();
+
+    final upgraded = await AppDatabase.open(
+      databaseFactory: databaseFactoryFfi,
+      path: testPath.path,
+    );
+
+    expect(
+      await upgraded.rawQuery('SELECT title FROM tasks WHERE id = ?', [
+        'legacy',
+      ]),
+      [
+        {'title': validTaskRow(id: 'legacy')['title']},
+      ],
+    );
+    expect(await upgraded.rawQuery('SELECT * FROM notification_ids'), isEmpty);
+    final columns = await upgraded.rawQuery('PRAGMA table_info(tasks)');
+    expect(
+      columns.map((row) => row['name']),
+      containsAll([
+        'reminder_local_date',
+        'reminder_local_hour',
+        'reminder_local_minute',
+      ]),
+    );
+
+    await upgraded.close();
+    await testPath.delete();
   });
 
   test('rolls back all records when a transaction fails', () async {
