@@ -6,6 +6,7 @@ class ActiveFocusSession {
     required this.mode,
     required DateTime startedAt,
     this.taskId,
+    this.taskTitle = '',
     DateTime? pausedAt,
     DateTime? targetAt,
     this.durationSeconds,
@@ -14,15 +15,17 @@ class ActiveFocusSession {
        pausedAt = pausedAt?.toUtc(),
        targetAt = targetAt?.toUtc();
 
-  factory ActiveFocusSession.countdown(
-    String id,
-    DateTime startedAt,
-    Duration duration, {
+  factory ActiveFocusSession.countdown({
+    required String id,
+    required DateTime startedAt,
+    required Duration duration,
     String? taskId,
+    String taskTitle = '',
   }) {
     return ActiveFocusSession._(
       id: id,
       taskId: taskId,
+      taskTitle: taskTitle,
       mode: FocusMode.countdown,
       startedAt: startedAt,
       targetAt: startedAt.add(duration),
@@ -30,15 +33,17 @@ class ActiveFocusSession {
     );
   }
 
-  factory ActiveFocusSession.pomodoro(
-    String id,
-    DateTime startedAt,
-    Duration duration, {
+  factory ActiveFocusSession.pomodoro({
+    required String id,
+    required DateTime startedAt,
+    required Duration duration,
     String? taskId,
+    String taskTitle = '',
   }) {
     return ActiveFocusSession._(
       id: id,
       taskId: taskId,
+      taskTitle: taskTitle,
       mode: FocusMode.pomodoro,
       startedAt: startedAt,
       targetAt: startedAt.add(duration),
@@ -46,14 +51,16 @@ class ActiveFocusSession {
     );
   }
 
-  factory ActiveFocusSession.countUp(
-    String id,
-    DateTime startedAt, {
+  factory ActiveFocusSession.countUp({
+    required String id,
+    required DateTime startedAt,
     String? taskId,
+    String taskTitle = '',
   }) {
     return ActiveFocusSession._(
       id: id,
       taskId: taskId,
+      taskTitle: taskTitle,
       mode: FocusMode.countUp,
       startedAt: startedAt,
     );
@@ -61,6 +68,7 @@ class ActiveFocusSession {
 
   final String id;
   final String? taskId;
+  final String taskTitle;
   final FocusMode mode;
   final DateTime startedAt;
   final DateTime? pausedAt;
@@ -95,6 +103,7 @@ class ActiveFocusSession {
     return ActiveFocusSession._(
       id: id,
       taskId: taskId,
+      taskTitle: taskTitle,
       mode: mode,
       startedAt: startedAt,
       targetAt: targetAt?.add(pausedDuration),
@@ -107,6 +116,7 @@ class ActiveFocusSession {
     return ActiveFocusSession._(
       id: id,
       taskId: taskId,
+      taskTitle: taskTitle,
       mode: mode,
       startedAt: startedAt,
       pausedAt: pausedAt,
@@ -119,6 +129,7 @@ class ActiveFocusSession {
   Map<String, Object?> toJson() => {
     'id': id,
     'taskId': taskId,
+    'taskTitle': taskTitle,
     'mode': mode.name,
     'startedAt': startedAt.toUtc().toIso8601String(),
     'pausedAt': pausedAt?.toUtc().toIso8601String(),
@@ -131,6 +142,7 @@ class ActiveFocusSession {
     return ActiveFocusSession._(
       id: json['id']! as String,
       taskId: json['taskId'] as String?,
+      taskTitle: (json['taskTitle'] as String?) ?? '',
       mode: FocusMode.values.byName(json['mode']! as String),
       startedAt: DateTime.parse(json['startedAt']! as String),
       pausedAt: _date(json['pausedAt']),

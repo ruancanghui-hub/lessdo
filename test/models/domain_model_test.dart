@@ -77,9 +77,9 @@ void main() {
   group('Focus sessions', () {
     test('countdown remainingAt uses the absolute target time', () {
       final session = ActiveFocusSession.countdown(
-        'active-1',
-        DateTime.utc(2026, 6, 13, 10),
-        const Duration(minutes: 10),
+        id: 'active-1',
+        startedAt: DateTime.utc(2026, 6, 13, 10),
+        duration: const Duration(minutes: 10),
       );
 
       expect(
@@ -90,8 +90,8 @@ void main() {
 
     test('pause and resume exclude paused time from elapsed time', () {
       final running = ActiveFocusSession.countUp(
-        'active-1',
-        DateTime.utc(2026, 6, 13, 10),
+        id: 'active-1',
+        startedAt: DateTime.utc(2026, 6, 13, 10),
       );
       final paused = running.pause(DateTime.utc(2026, 6, 13, 10, 5));
       final resumed = paused.resume(DateTime.utc(2026, 6, 13, 10, 8));
@@ -109,9 +109,9 @@ void main() {
 
     test('active session JSON round trip preserves UTC state', () {
       final session = ActiveFocusSession.pomodoro(
-        'active-1',
-        DateTime.utc(2026, 6, 13, 10),
-        const Duration(minutes: 25),
+        id: 'active-1',
+        startedAt: DateTime.utc(2026, 6, 13, 10),
+        duration: const Duration(minutes: 25),
         taskId: 'task-1',
       ).pause(DateTime.utc(2026, 6, 13, 10, 5));
 
