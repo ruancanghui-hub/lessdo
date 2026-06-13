@@ -76,7 +76,7 @@ class TaskItem {
   }) {
     final cleanTitle = title.trim();
     if (cleanTitle.isEmpty) {
-      throw const FormatException('Task title cannot be empty.');
+      throw ArgumentError.value(title, 'title', 'Task title cannot be empty.');
     }
     return TaskItem(
       id: id,
