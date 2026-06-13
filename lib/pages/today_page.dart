@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/task_item.dart';
-import '../store/app_store.dart';
+import '../controllers/app_controller.dart';
 import '../widgets/lessdo_top_bar.dart';
 import '../widgets/quick_add.dart';
 import '../widgets/section_label.dart';
@@ -18,7 +18,7 @@ class TodayPage extends StatelessWidget {
     required this.onStartFocus,
   });
 
-  final AppStore store;
+  final AppController store;
   final VoidCallback onOpenLists;
   final ValueChanged<String?> onStartFocus;
 
@@ -256,7 +256,7 @@ class _FocusEntry extends StatelessWidget {
 class _CompletedTasks extends StatelessWidget {
   const _CompletedTasks({required this.store});
 
-  final AppStore store;
+  final AppController store;
 
   @override
   Widget build(BuildContext context) {

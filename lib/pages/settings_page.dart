@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import '../store/app_store.dart';
+import '../controllers/app_controller.dart';
 import '../theme/lessdo_theme.dart';
 import '../widgets/lessdo_top_bar.dart';
 import 'legal_page.dart';
@@ -9,7 +9,7 @@ import 'legal_page.dart';
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key, required this.store});
 
-  final AppStore store;
+  final AppController store;
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +88,7 @@ class SettingsPage extends StatelessWidget {
 class _ProfileRow extends StatelessWidget {
   const _ProfileRow({required this.store});
 
-  final AppStore store;
+  final AppController store;
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +133,7 @@ class _ProfileRow extends StatelessWidget {
 class _ThemePicker extends StatelessWidget {
   const _ThemePicker({required this.store});
 
-  final AppStore store;
+  final AppController store;
 
   @override
   Widget build(BuildContext context) {

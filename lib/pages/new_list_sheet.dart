@@ -2,9 +2,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../models/task_list.dart';
-import '../store/app_store.dart';
+import '../controllers/app_controller.dart';
 
-Future<void> showNewListSheet(BuildContext context, {required AppStore store}) {
+Future<void> showNewListSheet(
+  BuildContext context, {
+  required AppController store,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -17,7 +20,7 @@ Future<void> showNewListSheet(BuildContext context, {required AppStore store}) {
 class _NewListSheet extends StatefulWidget {
   const _NewListSheet({required this.store});
 
-  final AppStore store;
+  final AppController store;
 
   @override
   State<_NewListSheet> createState() => _NewListSheetState();

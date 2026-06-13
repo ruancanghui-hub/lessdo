@@ -4,11 +4,11 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/task_item.dart';
-import '../store/app_store.dart';
+import '../controllers/app_controller.dart';
 
 Future<void> showTaskEditor(
   BuildContext context, {
-  required AppStore store,
+  required AppController store,
   required String taskId,
 }) {
   return showModalBottomSheet<void>(
@@ -23,7 +23,7 @@ Future<void> showTaskEditor(
 class _TaskEditorSheet extends StatefulWidget {
   const _TaskEditorSheet({required this.store, required this.taskId});
 
-  final AppStore store;
+  final AppController store;
   final String taskId;
 
   @override

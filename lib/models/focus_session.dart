@@ -3,6 +3,7 @@ import 'active_focus_session.dart';
 class FocusSession {
   FocusSession({
     required this.id,
+    this.taskId,
     required this.taskTitle,
     required this.minutes,
     required DateTime completedAt,
@@ -12,6 +13,7 @@ class FocusSession {
        completedAt = completedAt.toUtc();
 
   final String id;
+  final String? taskId;
   final String taskTitle;
   final int minutes;
   final FocusMode mode;
@@ -20,6 +22,7 @@ class FocusSession {
 
   Map<String, Object?> toJson() => {
     'id': id,
+    'taskId': taskId,
     'taskTitle': taskTitle,
     'minutes': minutes,
     'mode': mode.name,
@@ -31,6 +34,7 @@ class FocusSession {
     final minutes = json['minutes']! as int;
     return FocusSession(
       id: json['id']! as String,
+      taskId: json['taskId'] as String?,
       taskTitle: json['taskTitle']! as String,
       minutes: minutes,
       mode: FocusMode.values.byName(

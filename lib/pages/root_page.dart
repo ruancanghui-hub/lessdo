@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/task_list.dart';
-import '../store/app_store.dart';
+import '../controllers/app_controller.dart';
 import 'focus_page.dart';
 import 'list_detail_page.dart';
 import 'lists_page.dart';
@@ -16,7 +16,7 @@ import 'today_page.dart';
 class RootPage extends StatefulWidget {
   const RootPage({super.key, required this.store});
 
-  final AppStore store;
+  final AppController store;
 
   @override
   State<RootPage> createState() => _RootPageState();

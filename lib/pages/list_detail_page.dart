@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../models/task_list.dart';
-import '../store/app_store.dart';
+import '../controllers/app_controller.dart';
 import '../widgets/lessdo_top_bar.dart';
 import '../widgets/quick_add.dart';
 import '../widgets/task_row.dart';
@@ -11,7 +11,7 @@ import 'task_editor_sheet.dart';
 class ListDetailPage extends StatelessWidget {
   const ListDetailPage({super.key, required this.store, required this.listId});
 
-  final AppStore store;
+  final AppController store;
   final String listId;
 
   @override

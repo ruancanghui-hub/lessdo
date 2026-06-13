@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../models/task_list.dart';
-import '../store/app_store.dart';
+import '../controllers/app_controller.dart';
 import '../widgets/lessdo_top_bar.dart';
 import 'list_detail_page.dart';
 import 'new_list_sheet.dart';
@@ -10,7 +10,7 @@ import 'new_list_sheet.dart';
 class ListsPage extends StatelessWidget {
   const ListsPage({super.key, required this.store});
 
-  final AppStore store;
+  final AppController store;
 
   @override
   Widget build(BuildContext context) {

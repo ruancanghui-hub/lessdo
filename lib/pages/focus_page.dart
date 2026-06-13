@@ -4,13 +4,13 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../models/active_focus_session.dart';
-import '../store/app_store.dart';
+import '../controllers/app_controller.dart';
 import '../widgets/lessdo_top_bar.dart';
 
 class FocusPage extends StatefulWidget {
   const FocusPage({super.key, required this.store, this.initialTaskId});
 
-  final AppStore store;
+  final AppController store;
   final String? initialTaskId;
 
   @override

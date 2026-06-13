@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'controllers/app_controller.dart';
 import 'pages/root_page.dart';
-import 'store/app_store.dart';
 import 'theme/lessdo_theme.dart';
 
 class LessDoApp extends StatefulWidget {
   const LessDoApp({super.key, required this.store});
 
-  final AppStore store;
+  final AppController store;
 
   @override
   State<LessDoApp> createState() => _LessDoAppState();
