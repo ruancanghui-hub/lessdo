@@ -174,7 +174,7 @@ class _ReminderBanner extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${task.title} at ${DateFormat.jm().format(task.reminderAt!)}',
+                      '${task.title} at ${DateFormat.jm().format(task.reminderAtLocal!)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(

@@ -325,7 +325,8 @@ class _FocusPageState extends State<FocusPage> {
         .firstOrNull;
     await widget.store.addSession(
       title: selected?.title ?? 'Open focus session',
-      minutes: _mode == FocusMode.pomodoro ? 25 : 10,
+      mode: _mode,
+      durationSeconds: _mode == FocusMode.countUp ? _seconds : _baseSeconds,
     );
   }
 

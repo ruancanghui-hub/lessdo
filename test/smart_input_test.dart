@@ -46,4 +46,13 @@ void main() {
   test('rejects a blank task', () {
     expect(() => parser.parse('  \n '), throwsFormatException);
   });
+
+  test('rejects invalid Chinese hours instead of rolling the date', () {
+    expect(() => parser.parse('明天25点买咖啡'), throwsFormatException);
+    expect(() => parser.parse('明天上午13点买咖啡'), throwsFormatException);
+  });
+
+  test('rejects invalid Chinese minutes', () {
+    expect(() => parser.parse('明天下午3点60分买咖啡'), throwsFormatException);
+  });
 }

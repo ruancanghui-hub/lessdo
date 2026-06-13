@@ -103,7 +103,7 @@ class NotificationService {
   int _notificationId(String taskId) => taskId.hashCode.abs() % 2147483647;
 
   DateTime? _nextReminder(TaskItem task) {
-    final reminder = task.reminderAt;
+    final reminder = task.reminderAtLocal;
     if (reminder == null) return null;
     final now = DateTime.now();
     if (reminder.isAfter(now)) return reminder;

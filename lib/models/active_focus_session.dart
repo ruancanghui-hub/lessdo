@@ -22,6 +22,7 @@ class ActiveFocusSession {
     String? taskId,
     String taskTitle = '',
   }) {
+    _validateDuration(duration);
     return ActiveFocusSession._(
       id: id,
       taskId: taskId,
@@ -40,6 +41,7 @@ class ActiveFocusSession {
     String? taskId,
     String taskTitle = '',
   }) {
+    _validateDuration(duration);
     return ActiveFocusSession._(
       id: id,
       taskId: taskId,
@@ -92,13 +94,24 @@ class ActiveFocusSession {
   }
 
   ActiveFocusSession pause(DateTime at) {
-    if (pausedAt != null) return this;
-    return _copyWith(pausedAt: at.toUtc());
+    if (pausedAt != null) {
+      throw StateError('Focus session is already paused.');
+    }
+    final pauseAt = at.toUtc();
+    if (pauseAt.isBefore(startedAt)) {
+      throw ArgumentError.value(at, 'at', 'Pause cannot precede start.');
+    }
+    return _copyWith(pausedAt: pauseAt);
   }
 
   ActiveFocusSession resume(DateTime at) {
-    if (pausedAt == null) return this;
+    if (pausedAt == null) {
+      throw StateError('Focus session is not paused.');
+    }
     final resumedAt = at.toUtc();
+    if (resumedAt.isBefore(pausedAt!)) {
+      throw ArgumentError.value(at, 'at', 'Resume cannot precede pause.');
+    }
     final pausedDuration = resumedAt.difference(pausedAt!);
     return ActiveFocusSession._(
       id: id,
@@ -135,7 +148,7 @@ class ActiveFocusSession {
     'pausedAt': pausedAt?.toUtc().toIso8601String(),
     'targetAt': targetAt?.toUtc().toIso8601String(),
     'durationSeconds': durationSeconds,
-    'accumulatedPausedSeconds': accumulatedPaused.inSeconds,
+    'accumulatedPausedMicroseconds': accumulatedPaused.inMicroseconds,
   };
 
   factory ActiveFocusSession.fromJson(Map<String, Object?> json) {
@@ -149,12 +162,25 @@ class ActiveFocusSession {
       targetAt: _date(json['targetAt']),
       durationSeconds: json['durationSeconds'] as int?,
       accumulatedPaused: Duration(
-        seconds: (json['accumulatedPausedSeconds'] as int?) ?? 0,
+        microseconds:
+            (json['accumulatedPausedMicroseconds'] as int?) ??
+            ((json['accumulatedPausedSeconds'] as int?) ?? 0) *
+                Duration.microsecondsPerSecond,
       ),
     );
   }
 
   static DateTime? _date(Object? value) {
     return value is String && value.isNotEmpty ? DateTime.parse(value) : null;
+  }
+
+  static void _validateDuration(Duration duration) {
+    if (duration <= Duration.zero) {
+      throw ArgumentError.value(
+        duration,
+        'duration',
+        'Duration must be positive.',
+      );
+    }
   }
 }

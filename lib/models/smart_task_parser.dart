@@ -28,6 +28,7 @@ class SmartTaskParser {
     if (raw.trim().isEmpty) {
       throw const FormatException('Task title cannot be empty.');
     }
+    _validateChineseTimes(raw);
 
     final current = _now();
     final englishDateMatch = _englishDate.firstMatch(raw);
@@ -78,6 +79,20 @@ class SmartTaskParser {
       dueAt: dueAt,
       reminderAt: timeMatch == null ? null : dueAt,
     );
+  }
+
+  void _validateChineseTimes(String raw) {
+    final candidates = RegExp(
+      r'(上午|中午|下午|晚上|凌晨)?\s*(\d{1,2})[点時时](\d{1,2})?分?',
+    ).allMatches(raw);
+    for (final match in candidates) {
+      final period = match.group(1);
+      final hour = int.parse(match.group(2)!);
+      final minute = int.tryParse(match.group(3) ?? '') ?? 0;
+      if (hour > 23 || (period != null && hour > 12) || minute > 59) {
+        throw const FormatException('Invalid Chinese time.');
+      }
+    }
   }
 
   int _dayOffset(String? phrase) {

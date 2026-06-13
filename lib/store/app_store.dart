@@ -5,6 +5,7 @@ import 'package:local_auth/local_auth.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/active_focus_session.dart';
 import '../models/app_settings.dart';
 import '../models/focus_session.dart';
 import '../models/smart_task_parser.dart';
@@ -203,13 +204,18 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addSession({required String title, required int minutes}) async {
+  Future<void> addSession({
+    required String title,
+    required FocusMode mode,
+    required int durationSeconds,
+  }) async {
     sessions = [
       FocusSession(
         id: _uuid.v4(),
         taskTitle: title,
-        minutes: minutes,
-        durationSeconds: minutes * 60,
+        minutes: durationSeconds ~/ 60,
+        mode: mode,
+        durationSeconds: durationSeconds,
         completedAt: DateTime.now(),
       ),
       ...sessions,

@@ -144,7 +144,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                   label: 'Date',
                   value: _draft.dueAt == null
                       ? 'None'
-                      : DateFormat.MMMd().format(_draft.dueAt!),
+                      : DateFormat.MMMd().format(_draft.dueAtLocal!),
                   onTap: _pickDueDate,
                 ),
                 _ActionRow(
@@ -152,7 +152,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                   label: 'Reminder',
                   value: _draft.reminderAt == null
                       ? 'None'
-                      : DateFormat.jm().format(_draft.reminderAt!),
+                      : DateFormat.jm().format(_draft.reminderAtLocal!),
                   onTap: _pickReminder,
                 ),
                 _SelectRow<RepeatRule>(
@@ -341,11 +341,11 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
       context: context,
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 3650)),
-      initialDate: _draft.dueAt ?? DateTime.now(),
+      initialDate: _draft.dueAtLocal ?? DateTime.now(),
     );
     if (picked == null) return;
     setState(() {
-      final current = _draft.dueAt;
+      final current = _draft.dueAtLocal;
       _draft = _draft.copyWith(
         dueAt: DateTime(
           picked.year,
@@ -362,11 +362,11 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(
-        _draft.reminderAt ?? _draft.dueAt ?? DateTime.now(),
+        _draft.reminderAtLocal ?? _draft.dueAtLocal ?? DateTime.now(),
       ),
     );
     if (time == null) return;
-    final date = _draft.dueAt ?? DateTime.now();
+    final date = _draft.dueAtLocal ?? DateTime.now();
     setState(() {
       _draft = _draft.copyWith(
         dueAt: date,

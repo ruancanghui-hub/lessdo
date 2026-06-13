@@ -131,7 +131,7 @@ class TaskRow extends StatelessWidget {
 
   String _metaText() {
     if (grocery) return task.category.isEmpty ? 'Other' : task.category;
-    final reminder = task.reminderAt;
+    final reminder = task.reminderAtLocal;
     if (reminder != null) {
       return '${DateFormat.jm().format(reminder)}  •  ${list.name}';
     }

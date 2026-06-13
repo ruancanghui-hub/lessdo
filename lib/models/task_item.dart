@@ -37,26 +37,7 @@ class SubTask {
 }
 
 class TaskItem {
-  const TaskItem({
-    required this.id,
-    required this.title,
-    required this.listId,
-    required this.createdAt,
-    DateTime? updatedAt,
-    this.dueAt,
-    this.reminderAt,
-    this.notes = '',
-    this.priority = TaskPriority.normal,
-    this.repeatRule = RepeatRule.none,
-    this.category = '',
-    this.subtasks = const [],
-    this.completed = false,
-    this.completedAt,
-    this.sortOrder = 0,
-    this.reminderSchedulingFailed = false,
-  }) : updatedAt = updatedAt ?? createdAt;
-
-  factory TaskItem.create({
+  factory TaskItem({
     required String id,
     required String title,
     required String listId,
@@ -78,7 +59,7 @@ class TaskItem {
     if (cleanTitle.isEmpty) {
       throw ArgumentError.value(title, 'title', 'Task title cannot be empty.');
     }
-    return TaskItem(
+    return TaskItem._(
       id: id,
       title: cleanTitle,
       listId: listId,
@@ -90,9 +71,66 @@ class TaskItem {
       priority: priority,
       repeatRule: repeatRule,
       category: category,
-      subtasks: subtasks,
+      subtasks: List<SubTask>.unmodifiable(subtasks),
       completed: completed,
       completedAt: completedAt?.toUtc(),
+      sortOrder: sortOrder,
+      reminderSchedulingFailed: reminderSchedulingFailed,
+    );
+  }
+
+  const TaskItem._({
+    required this.id,
+    required this.title,
+    required this.listId,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.dueAt,
+    required this.reminderAt,
+    required this.notes,
+    required this.priority,
+    required this.repeatRule,
+    required this.category,
+    required this.subtasks,
+    required this.completed,
+    required this.completedAt,
+    required this.sortOrder,
+    required this.reminderSchedulingFailed,
+  });
+
+  factory TaskItem.create({
+    required String id,
+    required String title,
+    required String listId,
+    required DateTime createdAt,
+    DateTime? updatedAt,
+    DateTime? dueAt,
+    DateTime? reminderAt,
+    String notes = '',
+    TaskPriority priority = TaskPriority.normal,
+    RepeatRule repeatRule = RepeatRule.none,
+    String category = '',
+    List<SubTask> subtasks = const [],
+    bool completed = false,
+    DateTime? completedAt,
+    int sortOrder = 0,
+    bool reminderSchedulingFailed = false,
+  }) {
+    return TaskItem(
+      id: id,
+      title: title,
+      listId: listId,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      dueAt: dueAt,
+      reminderAt: reminderAt,
+      notes: notes,
+      priority: priority,
+      repeatRule: repeatRule,
+      category: category,
+      subtasks: subtasks,
+      completed: completed,
+      completedAt: completedAt,
       sortOrder: sortOrder,
       reminderSchedulingFailed: reminderSchedulingFailed,
     );
@@ -115,17 +153,24 @@ class TaskItem {
   final int sortOrder;
   final bool reminderSchedulingFailed;
 
-  bool get overdue => isOverdueAt(DateTime.now());
+  DateTime? get dueAtLocal => dueAt?.toLocal();
 
-  bool get dueToday => dueAt == null || isDueTodayAt(DateTime.now());
+  DateTime? get reminderAtLocal => reminderAt?.toLocal();
 
-  bool isOverdueAt(DateTime now) =>
-      !completed &&
-      dueAt != null &&
-      dueAt!.isBefore(now) &&
-      !isSameDay(dueAt!, now);
+  bool get overdue => isOverdue(DateTime.now());
 
-  bool isDueTodayAt(DateTime now) => dueAt != null && isSameDay(dueAt!, now);
+  bool get dueToday => dueAt == null || isDueToday(DateTime.now());
+
+  bool isOverdue(DateTime nowLocal) {
+    final localDue = dueAt?.toLocal();
+    return !completed &&
+        localDue != null &&
+        localDue.isBefore(nowLocal) &&
+        !isSameCalendarDay(localDue, nowLocal);
+  }
+
+  bool isDueToday(DateTime nowLocal) =>
+      dueAt != null && isSameCalendarDay(dueAt!.toLocal(), nowLocal);
 
   TaskItem copyWith({
     String? title,
@@ -226,7 +271,7 @@ class TaskItem {
   }
 }
 
-bool isSameDay(DateTime first, DateTime second) {
+bool isSameCalendarDay(DateTime first, DateTime second) {
   return first.year == second.year &&
       first.month == second.month &&
       first.day == second.day;

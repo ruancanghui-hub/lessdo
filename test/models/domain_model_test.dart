@@ -37,16 +37,101 @@ void main() {
     });
 
     test('date status can be evaluated against an injected now', () {
+      final dueLocal = DateTime(2026, 6, 13, 23, 30);
       final task = TaskItem.create(
         id: 'task-1',
         title: 'Pay bill',
         listId: 'inbox',
-        createdAt: DateTime.utc(2026, 6, 12),
-        dueAt: DateTime.utc(2026, 6, 13, 9),
+        createdAt: DateTime(2026, 6, 12),
+        dueAt: dueLocal,
       );
 
-      expect(task.isDueTodayAt(DateTime.utc(2026, 6, 13, 10)), isTrue);
-      expect(task.isOverdueAt(DateTime.utc(2026, 6, 14, 10)), isTrue);
+      expect(task.dueAtLocal, dueLocal);
+      expect(task.isDueToday(DateTime(2026, 6, 13, 8)), isTrue);
+      expect(task.isOverdue(DateTime(2026, 6, 14, 0, 1)), isTrue);
+      expect(
+        isSameCalendarDay(
+          DateTime(2026, 6, 13, 0, 1),
+          DateTime(2026, 6, 13, 23, 59),
+        ),
+        isTrue,
+      );
+    });
+
+    test('public constructor trims title and normalizes times to UTC', () {
+      final task = TaskItem(
+        id: 'task-1',
+        title: '  Ship release  ',
+        listId: 'inbox',
+        createdAt: DateTime(2026, 6, 13, 10),
+        dueAt: DateTime(2026, 6, 14, 15),
+      );
+
+      expect(task.title, 'Ship release');
+      expect(task.createdAt.isUtc, isTrue);
+      expect(task.dueAt?.isUtc, isTrue);
+      expect(
+        () => TaskItem(
+          id: 'task-2',
+          title: ' ',
+          listId: 'inbox',
+          createdAt: DateTime(2026, 6, 13),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('copyWith enforces title and UTC invariants', () {
+      final task = TaskItem.create(
+        id: 'task-1',
+        title: 'Original',
+        listId: 'inbox',
+        createdAt: DateTime(2026, 6, 13),
+      );
+
+      expect(() => task.copyWith(title: '  '), throwsArgumentError);
+      final updated = task.copyWith(
+        title: '  Updated  ',
+        dueAt: DateTime(2026, 6, 14, 9),
+      );
+      expect(updated.title, 'Updated');
+      expect(updated.dueAt?.isUtc, isTrue);
+    });
+
+    test('fromJson rejects blank titles and normalizes times', () {
+      final json = <String, Object?>{
+        'id': 'task-1',
+        'title': '  Restored  ',
+        'listId': 'inbox',
+        'createdAt': '2026-06-13T10:00:00',
+      };
+
+      final task = TaskItem.fromJson(json);
+      expect(task.title, 'Restored');
+      expect(task.createdAt.isUtc, isTrue);
+      expect(
+        () => TaskItem.fromJson({...json, 'title': ' '}),
+        throwsArgumentError,
+      );
+    });
+
+    test('subtasks are an immutable defensive copy', () {
+      final source = <SubTask>[const SubTask(id: 'sub-1', title: 'First')];
+      final task = TaskItem.create(
+        id: 'task-1',
+        title: 'Task',
+        listId: 'inbox',
+        createdAt: DateTime(2026, 6, 13),
+        subtasks: source,
+      );
+
+      source.add(const SubTask(id: 'sub-2', title: 'Second'));
+
+      expect(task.subtasks, hasLength(1));
+      expect(
+        () => task.subtasks.add(const SubTask(id: 'sub-3', title: 'Third')),
+        throwsUnsupportedError,
+      );
     });
   });
 
@@ -129,21 +214,79 @@ void main() {
       expect(restored.mode, FocusMode.pomodoro);
     });
 
-    test('completed focus session stores UTC completion and mode', () {
+    test('completed focus session stores exact non-pomodoro duration', () {
       final session = FocusSession(
         id: 'session-1',
-        taskTitle: 'Write tests',
-        minutes: 25,
-        mode: FocusMode.pomodoro,
-        durationSeconds: 1500,
+        taskTitle: 'Open focus',
+        minutes: 1,
+        mode: FocusMode.countUp,
+        durationSeconds: 73,
         completedAt: DateTime(2026, 6, 13, 10),
       );
 
       final restored = FocusSession.fromJson(session.toJson());
 
-      expect(restored.mode, FocusMode.pomodoro);
-      expect(restored.durationSeconds, 1500);
+      expect(restored.mode, FocusMode.countUp);
+      expect(restored.durationSeconds, 73);
       expect(restored.completedAt.isUtc, isTrue);
+    });
+
+    test('timed sessions require positive durations', () {
+      expect(
+        () => ActiveFocusSession.countdown(
+          id: 'active-1',
+          startedAt: DateTime.utc(2026, 6, 13, 10),
+          duration: Duration.zero,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => ActiveFocusSession.pomodoro(
+          id: 'active-2',
+          startedAt: DateTime.utc(2026, 6, 13, 10),
+          duration: const Duration(seconds: -1),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('pause and resume reject invalid state transitions', () {
+      final running = ActiveFocusSession.countUp(
+        id: 'active-1',
+        startedAt: DateTime.utc(2026, 6, 13, 10),
+      );
+      expect(
+        () => running.pause(DateTime.utc(2026, 6, 13, 9, 59)),
+        throwsArgumentError,
+      );
+
+      final paused = running.pause(DateTime.utc(2026, 6, 13, 10, 5));
+      expect(
+        () => paused.pause(DateTime.utc(2026, 6, 13, 10, 6)),
+        throwsStateError,
+      );
+      expect(
+        () => paused.resume(DateTime.utc(2026, 6, 13, 10, 4)),
+        throwsArgumentError,
+      );
+      expect(
+        () => running.resume(DateTime.utc(2026, 6, 13, 10, 6)),
+        throwsStateError,
+      );
+    });
+
+    test('pause JSON round trip preserves microsecond precision', () {
+      final running = ActiveFocusSession.countUp(
+        id: 'active-1',
+        startedAt: DateTime.utc(2026, 6, 13, 10),
+      );
+      final resumed = running
+          .pause(DateTime.utc(2026, 6, 13, 10, 0, 0, 0, 250))
+          .resume(DateTime.utc(2026, 6, 13, 10, 0, 0, 0, 1750));
+
+      final restored = ActiveFocusSession.fromJson(resumed.toJson());
+
+      expect(restored.accumulatedPaused, const Duration(microseconds: 1500));
     });
   });
 }
