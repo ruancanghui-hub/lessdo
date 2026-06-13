@@ -11,6 +11,7 @@ import '../models/focus_session.dart';
 import '../models/smart_task_parser.dart';
 import '../models/task_item.dart';
 import '../models/task_list.dart';
+import '../notifications/notification_coordinator.dart';
 import '../services/platform_coordinators.dart';
 
 class RepositoryReadException implements Exception {
@@ -63,7 +64,7 @@ class AppController extends ChangeNotifier {
   AppController({
     required TaskRepository repository,
     required SettingsRepository settingsRepository,
-    required NotificationCoordinator notifications,
+    required NotificationCoordinatorContract notifications,
     AuthenticationCoordinator? authentication,
     SharingCoordinator? sharing,
     DateTime Function()? now,
@@ -74,11 +75,15 @@ class AppController extends ChangeNotifier {
        _authentication = authentication ?? const _UnavailableAuthentication(),
        _sharing = sharing ?? const _UnavailableSharing(),
        _now = now ?? DateTime.now,
-       _idFactory = idFactory ?? const Uuid().v4;
+       _idFactory = idFactory ?? const Uuid().v4 {
+    _notificationSubscription = _notifications.actions.listen(
+      (action) => unawaited(handleNotificationAction(action)),
+    );
+  }
 
   final TaskRepository _repository;
   final SettingsRepository _settingsRepository;
-  final NotificationCoordinator _notifications;
+  final NotificationCoordinatorContract _notifications;
   final AuthenticationCoordinator _authentication;
   final SharingCoordinator _sharing;
   final DateTime Function() _now;
@@ -91,6 +96,9 @@ class AppController extends ChangeNotifier {
   AppSettings _settings = const AppSettings();
   List<OperationWarning> _operationWarnings = const [];
   Future<void> _operationQueue = Future.value();
+  final StreamController<String> _navigationTaskIds =
+      StreamController<String>.broadcast();
+  late final StreamSubscription<NotificationAction> _notificationSubscription;
 
   List<TaskList> get lists => _lists;
 
@@ -105,6 +113,8 @@ class AppController extends ChangeNotifier {
   AppSettings get settings => _settings;
 
   List<OperationWarning> get operationWarnings => _operationWarnings;
+
+  Stream<String> get navigationTaskIds => _navigationTaskIds.stream;
 
   void clearOperationWarnings() {
     if (_operationWarnings.isEmpty) return;
@@ -124,9 +134,48 @@ class AppController extends ChangeNotifier {
       _sessions = List.unmodifiable(values[1]! as List<FocusSession>);
       _activeFocus = values[2] as ActiveFocusSession?;
       _settings = values[3]! as AppSettings;
+      try {
+        final report = await _notifications.reconcile();
+        _applyReconcileReport(report);
+      } catch (_) {
+        _recordWarning('reconcileReminders', const []);
+      }
       notifyListeners();
+      final launchAction = await _notifications.launchAction();
+      if (launchAction != null) {
+        await handleNotificationAction(launchAction);
+      }
     } catch (error) {
       throw RepositoryReadException('load', error);
+    }
+  }
+
+  Future<void> handleNotificationAction(NotificationAction action) {
+    switch (action.type) {
+      case NotificationActionType.open:
+        if (_tasks.any((task) => task.id == action.taskId)) {
+          _navigationTaskIds.add(action.taskId);
+        }
+        return Future.value();
+      case NotificationActionType.complete:
+        final task = _taskOrNull(action.taskId);
+        if (task == null || task.completed) return Future.value();
+        return _enqueueMutation(() => _toggleTask(action.taskId));
+      case NotificationActionType.snooze10:
+        final task = _taskOrNull(action.taskId);
+        if (task == null || task.completed || task.reminderAt == null) {
+          return Future.value();
+        }
+        return _enqueueMutation(() async {
+          try {
+            final status = await _notifications.snooze(task);
+            if (status != ReminderScheduleStatus.scheduled) {
+              _recordWarning('snoozeReminder', [task.id]);
+            }
+          } catch (_) {
+            _recordWarning('snoozeReminder', [task.id]);
+          }
+        });
     }
   }
 
@@ -502,10 +551,37 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> _scheduleReminder(TaskItem task) async {
-    if (!await _notifications.requestPermission()) {
+    final status = await _notifications.schedule(task);
+    if (status == ReminderScheduleStatus.permissionDenied) {
       throw StateError('Notification permission denied.');
     }
-    await _notifications.schedule(task);
+    if (status == ReminderScheduleStatus.noOccurrence) {
+      throw StateError('Reminder has no future occurrence.');
+    }
+  }
+
+  void _applyReconcileReport(NotificationReconcileReport report) {
+    final failedIds = report.failedTaskIds.toSet();
+    final scheduledIds = report.scheduledMissingTaskIds.toSet();
+    _tasks = List.unmodifiable([
+      for (final task in _tasks)
+        if (failedIds.contains(task.id))
+          task.copyWith(reminderSchedulingFailed: true)
+        else if (scheduledIds.contains(task.id))
+          task.copyWith(reminderSchedulingFailed: false)
+        else
+          task,
+    ]);
+    if (failedIds.isNotEmpty) {
+      _recordWarning('reconcileReminders', failedIds);
+    }
+  }
+
+  TaskItem? _taskOrNull(String id) {
+    for (final task in _tasks) {
+      if (task.id == id) return task;
+    }
+    return null;
   }
 
   Future<T> _enqueueMutation<T>(Future<T> Function() operation) {
@@ -558,6 +634,13 @@ class AppController extends ChangeNotifier {
         return order != 0 ? order : a.id.compareTo(b.id);
       });
     return List.unmodifiable(sorted);
+  }
+
+  @override
+  void dispose() {
+    unawaited(_notificationSubscription.cancel());
+    unawaited(_navigationTaskIds.close());
+    super.dispose();
   }
 
   List<TaskList> _sortedLists(Iterable<TaskList> values) {

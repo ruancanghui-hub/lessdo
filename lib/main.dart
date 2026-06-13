@@ -6,6 +6,7 @@ import 'controllers/app_controller.dart';
 import 'data/app_database.dart';
 import 'data/settings_repository.dart';
 import 'data/sqlite_task_repository.dart';
+import 'notifications/notification_coordinator.dart';
 import 'services/notification_service.dart';
 import 'services/platform_coordinators.dart';
 
@@ -17,13 +18,22 @@ Future<void> main() async {
   final settingsRepository = SettingsRepository(
     await SharedPreferences.getInstance(),
   );
-  final notifications = NotificationService();
+  final timeZone = await initializeNotificationTimeZone();
+  if (timeZone.warning != null) {
+    debugPrint('Notification timezone fallback: ${timeZone.warning!.cause}');
+  }
+  final notificationPlatform = NotificationService();
+  final notifications = NotificationCoordinator(
+    platform: notificationPlatform,
+    repository: repository,
+    location: timeZone.location,
+  );
   await notifications.initialize();
 
   final store = AppController(
     repository: repository,
     settingsRepository: settingsRepository,
-    notifications: NotificationServiceCoordinator(notifications),
+    notifications: notifications,
     authentication: LocalAuthenticationCoordinator(),
     sharing: SharePlusCoordinator(),
   );

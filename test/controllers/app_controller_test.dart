@@ -9,7 +9,7 @@ import 'package:lessdo/models/app_settings.dart';
 import 'package:lessdo/models/focus_session.dart';
 import 'package:lessdo/models/task_item.dart';
 import 'package:lessdo/models/task_list.dart';
-import 'package:lessdo/services/platform_coordinators.dart';
+import 'package:lessdo/notifications/notification_coordinator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -378,6 +378,56 @@ void main() {
     expect(controller.operationWarnings.first.failedTaskIds, ['task-5']);
     expect(controller.operationWarnings.last.failedTaskIds, ['task-54']);
   });
+
+  test('notification complete action completes and cancels the task', () async {
+    final repository = _MemoryTaskRepository(tasks: [_task('task-1')]);
+    final notifications = _FakeNotificationCoordinator();
+    final controller = await _controller(
+      repository: repository,
+      notifications: notifications,
+    );
+
+    await controller.handleNotificationAction(
+      const NotificationAction.complete('task-1'),
+    );
+
+    expect(controller.tasks.single.completed, isTrue);
+    expect(repository.tasks.single.completed, isTrue);
+    expect(notifications.cancelledTaskIds, ['task-1']);
+  });
+
+  test('notification snooze action schedules a one-time snooze', () async {
+    final repository = _MemoryTaskRepository(tasks: [_task('task-1')]);
+    final notifications = _FakeNotificationCoordinator();
+    final controller = await _controller(
+      repository: repository,
+      notifications: notifications,
+    );
+
+    await controller.handleNotificationAction(
+      const NotificationAction.snooze10('task-1'),
+    );
+
+    expect(notifications.snoozedTaskIds, ['task-1']);
+    expect(controller.tasks.single.repeatRule, RepeatRule.none);
+  });
+
+  test('notification open action emits a navigation task id', () async {
+    final controller = await _controller(
+      repository: _MemoryTaskRepository(tasks: [_task('task-1')]),
+      notifications: _FakeNotificationCoordinator(),
+    );
+
+    final navigation = expectLater(
+      controller.navigationTaskIds,
+      emits('task-1'),
+    );
+    await controller.handleNotificationAction(
+      const NotificationAction.open('task-1'),
+    );
+
+    await navigation;
+  });
 }
 
 class _ThrowingTaskRepository extends _MemoryTaskRepository {
@@ -540,13 +590,19 @@ class _MemoryTaskRepository implements TaskRepository {
   }
 }
 
-class _FakeNotificationCoordinator implements NotificationCoordinator {
+class _FakeNotificationCoordinator implements NotificationCoordinatorContract {
   bool failSchedule = false;
   bool permissionGranted = true;
   int permissionRequests = 0;
   final Set<String> failedCancellationIds = {};
   final List<String> scheduledTaskIds = [];
   final List<String> cancelledTaskIds = [];
+  final List<String> snoozedTaskIds = [];
+  final StreamController<NotificationAction> actionController =
+      StreamController<NotificationAction>.broadcast();
+
+  @override
+  Stream<NotificationAction> get actions => actionController.stream;
 
   @override
   Future<void> cancel(String taskId) async {
@@ -557,15 +613,51 @@ class _FakeNotificationCoordinator implements NotificationCoordinator {
   }
 
   @override
-  Future<bool> requestPermission() async {
+  Future<NotificationPermissionStatus> requestPermission() async {
     permissionRequests += 1;
-    return permissionGranted;
+    return permissionGranted
+        ? NotificationPermissionStatus.granted
+        : NotificationPermissionStatus.denied;
   }
 
   @override
-  Future<void> schedule(TaskItem task) async {
+  Future<ReminderScheduleStatus> schedule(
+    TaskItem task, {
+    bool requestPermission = true,
+  }) async {
+    if (requestPermission) {
+      final permission = await this.requestPermission();
+      if (permission != NotificationPermissionStatus.granted) {
+        return ReminderScheduleStatus.permissionDenied;
+      }
+    }
     scheduledTaskIds.add(task.id);
     if (failSchedule) throw StateError('schedule failed');
+    return ReminderScheduleStatus.scheduled;
+  }
+
+  @override
+  Future<ReminderScheduleStatus> snooze(TaskItem task) async {
+    snoozedTaskIds.add(task.id);
+    return ReminderScheduleStatus.scheduled;
+  }
+
+  @override
+  Future<NotificationAction?> launchAction() async => null;
+
+  @override
+  Future<NotificationPermissionStatus> permissionStatus() async =>
+      permissionGranted
+      ? NotificationPermissionStatus.granted
+      : NotificationPermissionStatus.denied;
+
+  @override
+  Future<NotificationReconcileReport> reconcile() async {
+    return NotificationReconcileReport(
+      cancelledOrphanTaskIds: const [],
+      scheduledMissingTaskIds: const [],
+      failedTaskIds: const [],
+    );
   }
 }
 

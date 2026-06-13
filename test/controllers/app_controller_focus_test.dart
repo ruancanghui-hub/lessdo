@@ -4,7 +4,7 @@ import 'package:lessdo/data/settings_repository.dart';
 import 'package:lessdo/data/sqlite_task_repository.dart';
 import 'package:lessdo/models/active_focus_session.dart';
 import 'package:lessdo/models/task_item.dart';
-import 'package:lessdo/services/platform_coordinators.dart';
+import 'package:lessdo/notifications/notification_coordinator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/test_database.dart';
@@ -36,13 +36,39 @@ void main() {
   });
 }
 
-class _FakeNotificationCoordinator implements NotificationCoordinator {
+class _FakeNotificationCoordinator implements NotificationCoordinatorContract {
+  @override
+  Stream<NotificationAction> get actions => const Stream.empty();
+
   @override
   Future<void> cancel(String taskId) async {}
 
   @override
-  Future<bool> requestPermission() async => true;
+  Future<NotificationAction?> launchAction() async => null;
 
   @override
-  Future<void> schedule(TaskItem task) async {}
+  Future<NotificationPermissionStatus> permissionStatus() async =>
+      NotificationPermissionStatus.granted;
+
+  @override
+  Future<NotificationReconcileReport> reconcile() async =>
+      NotificationReconcileReport(
+        cancelledOrphanTaskIds: const [],
+        scheduledMissingTaskIds: const [],
+        failedTaskIds: const [],
+      );
+
+  @override
+  Future<NotificationPermissionStatus> requestPermission() async =>
+      NotificationPermissionStatus.granted;
+
+  @override
+  Future<ReminderScheduleStatus> schedule(
+    TaskItem task, {
+    bool requestPermission = true,
+  }) async => ReminderScheduleStatus.scheduled;
+
+  @override
+  Future<ReminderScheduleStatus> snooze(TaskItem task) async =>
+      ReminderScheduleStatus.scheduled;
 }

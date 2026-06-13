@@ -5,149 +5,270 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../models/task_item.dart';
+import '../notifications/notification_coordinator.dart';
 
-class NotificationService {
-  final FlutterLocalNotificationsPlugin _plugin =
-      FlutterLocalNotificationsPlugin();
+class NotificationTimeZoneFallbackWarning {
+  const NotificationTimeZoneFallbackWarning(this.cause);
 
-  Future<void> initialize() async {
+  final Object cause;
+}
+
+class NotificationTimeZoneInitialization {
+  const NotificationTimeZoneInitialization({
+    required this.location,
+    this.warning,
+  });
+
+  final tz.Location location;
+  final NotificationTimeZoneFallbackWarning? warning;
+}
+
+DateTimeComponents? notificationDateTimeComponents(RepeatRule repeatRule) {
+  return switch (repeatRule) {
+    RepeatRule.none || RepeatRule.monthly => null,
+    RepeatRule.daily => DateTimeComponents.time,
+    RepeatRule.weekly => DateTimeComponents.dayOfWeekAndTime,
+  };
+}
+
+Future<NotificationTimeZoneInitialization> initializeNotificationTimeZone({
+  Future<String> Function()? lookupIdentifier,
+  Duration Function()? systemOffset,
+}) async {
+  tz_data.initializeTimeZones();
+  try {
+    final identifier = lookupIdentifier == null
+        ? (await FlutterTimezone.getLocalTimezone()).identifier
+        : await lookupIdentifier();
+    final location = tz.getLocation(identifier);
+    tz.setLocalLocation(location);
+    return NotificationTimeZoneInitialization(location: location);
+  } catch (error) {
+    final offset = systemOffset?.call() ?? DateTime.now().timeZoneOffset;
+    final fallback = tz.Location('System/LocalFallback', [tz.minTime], [0], [
+      tz.TimeZone(
+        offset,
+        isDst:
+            DateTime.now().isUtc == false &&
+            DateTime.now().timeZoneName.toUpperCase().endsWith('DT'),
+        abbreviation: DateTime.now().timeZoneName,
+      ),
+    ]);
+    tz.setLocalLocation(fallback);
+    return NotificationTimeZoneInitialization(
+      location: fallback,
+      warning: NotificationTimeZoneFallbackWarning(error),
+    );
+  }
+}
+
+class NotificationService implements NotificationPlatform {
+  NotificationService({FlutterLocalNotificationsPlugin? plugin})
+    : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+
+  final FlutterLocalNotificationsPlugin _plugin;
+
+  @override
+  Future<void> initialize({
+    required void Function(NotificationResponseData response) onResponse,
+  }) async {
     if (kIsWeb) return;
-
-    tz_data.initializeTimeZones();
-    try {
-      final current = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(current.identifier));
-    } catch (_) {
-      tz.setLocalLocation(tz.UTC);
-    }
-
-    const settings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    final categories = <DarwinNotificationCategory>[
+      DarwinNotificationCategory(
+        'task_reminder',
+        actions: [
+          DarwinNotificationAction.plain(
+            'complete',
+            'Complete',
+            options: {DarwinNotificationActionOption.foreground},
+          ),
+          DarwinNotificationAction.plain(
+            'snooze_10',
+            'Snooze 10 min',
+            options: {DarwinNotificationActionOption.foreground},
+          ),
+        ],
+      ),
+    ];
+    final settings = InitializationSettings(
+      android: const AndroidInitializationSettings('@mipmap/ic_launcher'),
       iOS: DarwinInitializationSettings(
         requestAlertPermission: false,
         requestBadgePermission: false,
         requestSoundPermission: false,
+        notificationCategories: categories,
       ),
       macOS: DarwinInitializationSettings(
         requestAlertPermission: false,
         requestBadgePermission: false,
         requestSoundPermission: false,
+        notificationCategories: categories,
       ),
     );
-    await _plugin.initialize(settings: settings);
+    await _plugin.initialize(
+      settings: settings,
+      onDidReceiveNotificationResponse: (response) {
+        onResponse(
+          NotificationResponseData(
+            actionId: response.actionId,
+            payload: response.payload,
+          ),
+        );
+      },
+    );
   }
 
-  Future<bool> requestPermission() async {
-    if (kIsWeb) return true;
-    final android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    final ios = _plugin
-        .resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin
-        >();
-    final macOS = _plugin
-        .resolvePlatformSpecificImplementation<
-          MacOSFlutterLocalNotificationsPlugin
-        >();
-
-    final results = <bool?>[
-      await android?.requestNotificationsPermission(),
-      await ios?.requestPermissions(alert: true, badge: true, sound: true),
-      await macOS?.requestPermissions(alert: true, badge: true, sound: true),
-    ];
-    return results.whereType<bool>().every((result) => result);
+  @override
+  Future<NotificationPermissionStatus> getPermissionStatus() async {
+    if (kIsWeb) return NotificationPermissionStatus.granted;
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        final enabled = await _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.areNotificationsEnabled();
+        if (enabled == null) {
+          return NotificationPermissionStatus.notDetermined;
+        }
+        return enabled
+            ? NotificationPermissionStatus.granted
+            : NotificationPermissionStatus.denied;
+      case TargetPlatform.iOS:
+        final options = await _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >()
+            ?.checkPermissions();
+        if (options == null) {
+          return NotificationPermissionStatus.notDetermined;
+        }
+        return options.isEnabled
+            ? NotificationPermissionStatus.granted
+            : NotificationPermissionStatus.denied;
+      case TargetPlatform.macOS:
+        final options = await _plugin
+            .resolvePlatformSpecificImplementation<
+              MacOSFlutterLocalNotificationsPlugin
+            >()
+            ?.checkPermissions();
+        if (options == null) {
+          return NotificationPermissionStatus.notDetermined;
+        }
+        return options.isEnabled
+            ? NotificationPermissionStatus.granted
+            : NotificationPermissionStatus.denied;
+      case TargetPlatform.fuchsia:
+      case TargetPlatform.linux:
+      case TargetPlatform.windows:
+        return NotificationPermissionStatus.granted;
+    }
   }
 
-  Future<void> schedule(TaskItem task) async {
+  @override
+  Future<NotificationPermissionStatus> requestPermission() async {
+    if (kIsWeb) return NotificationPermissionStatus.granted;
+    final bool? granted;
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        granted = await _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.requestNotificationsPermission();
+      case TargetPlatform.iOS:
+        granted = await _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >()
+            ?.requestPermissions(alert: true, badge: true, sound: true);
+      case TargetPlatform.macOS:
+        granted = await _plugin
+            .resolvePlatformSpecificImplementation<
+              MacOSFlutterLocalNotificationsPlugin
+            >()
+            ?.requestPermissions(alert: true, badge: true, sound: true);
+      case TargetPlatform.fuchsia:
+      case TargetPlatform.linux:
+      case TargetPlatform.windows:
+        granted = true;
+    }
+    if (granted == null) return NotificationPermissionStatus.notDetermined;
+    return granted
+        ? NotificationPermissionStatus.granted
+        : NotificationPermissionStatus.denied;
+  }
+
+  @override
+  Future<void> schedule(ScheduledNotification notification) async {
     if (kIsWeb) return;
-    await cancel(task.id);
-    final reminder = _nextReminder(task);
-    if (reminder == null) return;
-
-    const details = NotificationDetails(
-      android: AndroidNotificationDetails(
+    final details = NotificationDetails(
+      android: const AndroidNotificationDetails(
         'task_reminders',
         'Task reminders',
         channelDescription: 'Reminders for LessDo tasks',
         importance: Importance.high,
         priority: Priority.high,
+        actions: [
+          AndroidNotificationAction(
+            'complete',
+            'Complete',
+            showsUserInterface: true,
+          ),
+          AndroidNotificationAction(
+            'snooze_10',
+            'Snooze 10 min',
+            showsUserInterface: true,
+          ),
+        ],
       ),
-      iOS: DarwinNotificationDetails(categoryIdentifier: 'task_reminder'),
-      macOS: DarwinNotificationDetails(categoryIdentifier: 'task_reminder'),
+      iOS: const DarwinNotificationDetails(categoryIdentifier: 'task_reminder'),
+      macOS: const DarwinNotificationDetails(
+        categoryIdentifier: 'task_reminder',
+      ),
     );
-
     await _plugin.zonedSchedule(
-      id: _notificationId(task.id),
-      title: task.title,
-      body: task.notes.isEmpty ? 'LessDo reminder' : task.notes,
-      scheduledDate: tz.TZDateTime.from(reminder, tz.local),
+      id: notification.id,
+      title: notification.title,
+      body: notification.body,
+      scheduledDate: notification.scheduledDate,
       notificationDetails: details,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      payload: task.id,
-      matchDateTimeComponents: switch (task.repeatRule) {
-        RepeatRule.daily => DateTimeComponents.time,
-        RepeatRule.weekly => DateTimeComponents.dayOfWeekAndTime,
-        RepeatRule.monthly => DateTimeComponents.dayOfMonthAndTime,
-        RepeatRule.none => null,
-      },
+      payload: notification.payload,
+      matchDateTimeComponents: notificationDateTimeComponents(
+        notification.repeatRule,
+      ),
     );
   }
 
-  Future<void> cancel(String taskId) async {
+  @override
+  Future<void> cancel(int notificationId) async {
     if (kIsWeb) return;
-    await _plugin.cancel(id: _notificationId(taskId));
+    await _plugin.cancel(id: notificationId);
   }
 
-  int _notificationId(String taskId) => taskId.hashCode.abs() % 2147483647;
-
-  DateTime? _nextReminder(TaskItem task) {
-    final reminder = task.reminderAtLocal;
-    if (reminder == null) return null;
-    final now = DateTime.now();
-    if (reminder.isAfter(now)) return reminder;
-
-    return switch (task.repeatRule) {
-      RepeatRule.none => null,
-      RepeatRule.daily => DateTime(
-        now.year,
-        now.month,
-        now.day + 1,
-        reminder.hour,
-        reminder.minute,
+  @override
+  Future<List<PendingNotification>> pendingNotifications() async {
+    if (kIsWeb) return const [];
+    final requests = await _plugin.pendingNotificationRequests();
+    return List.unmodifiable(
+      requests.map(
+        (request) =>
+            PendingNotification(id: request.id, payload: request.payload),
       ),
-      RepeatRule.weekly => reminder.add(
-        Duration(days: ((now.difference(reminder).inDays ~/ 7) + 1) * 7),
-      ),
-      RepeatRule.monthly => _nextMonthly(reminder, now),
-    };
-  }
-
-  DateTime _nextMonthly(DateTime reminder, DateTime now) {
-    var year = now.year;
-    var month = now.month;
-    var candidate = DateTime(
-      year,
-      month,
-      reminder.day,
-      reminder.hour,
-      reminder.minute,
     );
-    if (!candidate.isAfter(now)) {
-      month++;
-      if (month > 12) {
-        year++;
-        month = 1;
-      }
-      candidate = DateTime(
-        year,
-        month,
-        reminder.day,
-        reminder.hour,
-        reminder.minute,
-      );
-    }
-    return candidate;
+  }
+
+  @override
+  Future<NotificationResponseData?> launchNotificationResponse() async {
+    if (kIsWeb) return null;
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    if (details?.didNotificationLaunchApp != true) return null;
+    final response = details?.notificationResponse;
+    if (response == null) return null;
+    return NotificationResponseData(
+      actionId: response.actionId,
+      payload: response.payload,
+    );
   }
 }
