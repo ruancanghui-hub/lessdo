@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/app_settings.dart';
 import '../models/focus_session.dart';
+import '../models/smart_task_parser.dart';
 import '../models/task_item.dart';
 import '../models/task_list.dart';
 import '../services/notification_service.dart';
@@ -81,9 +82,9 @@ class AppStore extends ChangeNotifier {
     DateTime? dueAt,
     DateTime? reminderAt,
   }) async {
-    final parsed = parseSmartTask(text);
+    final parsed = SmartTaskParser(now: DateTime.now).parse(text);
     final list = listById(listId);
-    final task = TaskItem(
+    final task = TaskItem.create(
       id: _uuid.v4(),
       title: parsed.title,
       listId: listId,
@@ -208,6 +209,7 @@ class AppStore extends ChangeNotifier {
         id: _uuid.v4(),
         taskTitle: title,
         minutes: minutes,
+        durationSeconds: minutes * 60,
         completedAt: DateTime.now(),
       ),
       ...sessions,
@@ -331,70 +333,4 @@ class AppStore extends ChangeNotifier {
       ),
     ];
   }
-}
-
-class SmartTaskResult {
-  const SmartTaskResult({
-    required this.title,
-    required this.dueAt,
-    required this.reminderAt,
-  });
-
-  final String title;
-  final DateTime dueAt;
-  final DateTime? reminderAt;
-}
-
-SmartTaskResult parseSmartTask(String raw) {
-  final now = DateTime.now();
-  final lower = raw.toLowerCase();
-  var dayOffset = 0;
-  if (lower.contains('tomorrow') || raw.contains('明天')) {
-    dayOffset = 1;
-  } else if (lower.contains('next week') || raw.contains('下周')) {
-    dayOffset = 7;
-  }
-
-  final timePattern = RegExp(
-    r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)?',
-    caseSensitive: false,
-  );
-  final chineseTime = RegExp(r'(上午|下午|晚上)?\s*(\d{1,2})[点時时](半|\d{1,2}分?)?');
-  final englishMatch = timePattern.allMatches(raw).lastOrNull;
-  final chineseMatch = chineseTime.firstMatch(raw);
-
-  int? hour;
-  var minute = 0;
-  if (chineseMatch != null) {
-    hour = int.parse(chineseMatch.group(2)!);
-    final period = chineseMatch.group(1);
-    if ((period == '下午' || period == '晚上') && hour < 12) hour += 12;
-    final minuteText = chineseMatch.group(3);
-    minute = minuteText == '半'
-        ? 30
-        : int.tryParse((minuteText ?? '').replaceAll('分', '')) ?? 0;
-  } else if (englishMatch != null) {
-    hour = int.parse(englishMatch.group(1)!);
-    minute = int.tryParse(englishMatch.group(2) ?? '') ?? 0;
-    final period = englishMatch.group(3)?.toLowerCase();
-    if (period == 'pm' && hour < 12) hour += 12;
-    if (period == 'am' && hour == 12) hour = 0;
-  }
-
-  final dueAt = DateTime(
-    now.year,
-    now.month,
-    now.day + dayOffset,
-    hour ?? 18,
-    minute,
-  );
-  return SmartTaskResult(
-    title: raw.trim(),
-    dueAt: dueAt,
-    reminderAt: hour == null ? null : dueAt,
-  );
-}
-
-extension FirstOrNullExtension<T> on Iterable<T> {
-  T? get lastOrNull => isEmpty ? null : last;
 }

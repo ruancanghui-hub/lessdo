@@ -1,19 +1,49 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lessdo/store/app_store.dart';
+import 'package:lessdo/models/smart_task_parser.dart';
 
 void main() {
-  test('parses English tomorrow time', () {
-    final result = parseSmartTask('Call Alex tomorrow at 2pm');
+  final now = DateTime(2026, 6, 13, 10);
+  late SmartTaskParser parser;
 
-    expect(result.title, 'Call Alex tomorrow at 2pm');
-    expect(result.dueAt.day, DateTime.now().add(const Duration(days: 1)).day);
-    expect(result.reminderAt?.hour, 14);
+  setUp(() {
+    parser = SmartTaskParser(now: () => now);
   });
 
-  test('parses Chinese tomorrow time', () {
-    final result = parseSmartTask('明天下午3点买咖啡');
+  test('parses an English tomorrow date and 12-hour time', () {
+    final result = parser.parse('Buy coffee tomorrow at 3:30 pm');
 
-    expect(result.dueAt.day, DateTime.now().add(const Duration(days: 1)).day);
-    expect(result.reminderAt?.hour, 15);
+    expect(result.title, 'Buy coffee');
+    expect(result.dueAt, DateTime(2026, 6, 14, 15, 30));
+    expect(result.reminderAt, result.dueAt);
+  });
+
+  test('parses a Chinese tomorrow date and afternoon time', () {
+    final result = parser.parse('明天下午3点买咖啡');
+
+    expect(result.title, '买咖啡');
+    expect(result.dueAt, DateTime(2026, 6, 14, 15));
+    expect(result.reminderAt, result.dueAt);
+  });
+
+  test('does not treat an unmarked number as a time', () {
+    final result = parser.parse('Buy 12 apples');
+
+    expect(result.title, 'Buy 12 apples');
+    expect(result.dueAt, isNull);
+    expect(result.reminderAt, isNull);
+  });
+
+  test('handles midnight and noon correctly', () {
+    final midnight = parser.parse('Sleep tomorrow at 12am');
+    final noon = parser.parse('Lunch tomorrow at 12pm');
+
+    expect(midnight.title, 'Sleep');
+    expect(midnight.dueAt, DateTime(2026, 6, 14));
+    expect(noon.title, 'Lunch');
+    expect(noon.dueAt, DateTime(2026, 6, 14, 12));
+  });
+
+  test('rejects a blank task', () {
+    expect(() => parser.parse('  \n '), throwsFormatException);
   });
 }

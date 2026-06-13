@@ -3,10 +3,9 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../models/focus_session.dart';
 import '../store/app_store.dart';
 import '../widgets/lessdo_top_bar.dart';
-
-enum FocusMode { pomodoro, countdown, countUp }
 
 class FocusPage extends StatefulWidget {
   const FocusPage({super.key, required this.store, this.initialTaskId});

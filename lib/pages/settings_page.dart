@@ -32,37 +32,6 @@ class SettingsPage extends StatelessWidget {
                   store.settings.copyWith(largeText: value),
                 ),
               ),
-              const _GroupTitle('Reminders & Sync'),
-              _SettingsToggle(
-                icon: CupertinoIcons.bell,
-                title: 'Continuous reminder',
-                subtitle: 'Planned for version 1.1',
-                value: store.settings.continuousReminder,
-                enabled: false,
-                onChanged: (value) => store.updateSettings(
-                  store.settings.copyWith(continuousReminder: value),
-                ),
-              ),
-              _SettingsToggle(
-                icon: CupertinoIcons.cloud,
-                title: 'Cloud sync',
-                subtitle: 'Planned for version 1.1',
-                value: store.settings.cloudSync,
-                enabled: false,
-                onChanged: (value) => store.updateSettings(
-                  store.settings.copyWith(cloudSync: value),
-                ),
-              ),
-              _SettingsToggle(
-                icon: CupertinoIcons.calendar,
-                title: 'Calendar sync',
-                subtitle: 'Planned for version 1.1',
-                value: store.settings.calendarSync,
-                enabled: false,
-                onChanged: (value) => store.updateSettings(
-                  store.settings.copyWith(calendarSync: value),
-                ),
-              ),
               const _GroupTitle('Privacy'),
               _SettingsToggle(
                 icon: CupertinoIcons.lock_shield,
@@ -253,7 +222,6 @@ class _SettingsToggle extends StatelessWidget {
     required this.subtitle,
     required this.value,
     required this.onChanged,
-    this.enabled = true,
   });
 
   final IconData icon;
@@ -261,7 +229,6 @@ class _SettingsToggle extends StatelessWidget {
   final String subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
-  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -299,7 +266,7 @@ class _SettingsToggle extends StatelessWidget {
               ],
             ),
           ),
-          CupertinoSwitch(value: value, onChanged: enabled ? onChanged : null),
+          CupertinoSwitch(value: value, onChanged: onChanged),
         ],
       ),
     );

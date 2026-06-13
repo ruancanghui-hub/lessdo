@@ -42,42 +42,90 @@ class TaskItem {
     required this.title,
     required this.listId,
     required this.createdAt,
+    DateTime? updatedAt,
     this.dueAt,
     this.reminderAt,
     this.notes = '',
     this.priority = TaskPriority.normal,
     this.repeatRule = RepeatRule.none,
-    this.locationReminder = false,
-    this.locationName = '',
     this.category = '',
     this.subtasks = const [],
     this.completed = false,
     this.completedAt,
-  });
+    this.sortOrder = 0,
+    this.reminderSchedulingFailed = false,
+  }) : updatedAt = updatedAt ?? createdAt;
+
+  factory TaskItem.create({
+    required String id,
+    required String title,
+    required String listId,
+    required DateTime createdAt,
+    DateTime? updatedAt,
+    DateTime? dueAt,
+    DateTime? reminderAt,
+    String notes = '',
+    TaskPriority priority = TaskPriority.normal,
+    RepeatRule repeatRule = RepeatRule.none,
+    String category = '',
+    List<SubTask> subtasks = const [],
+    bool completed = false,
+    DateTime? completedAt,
+    int sortOrder = 0,
+    bool reminderSchedulingFailed = false,
+  }) {
+    final cleanTitle = title.trim();
+    if (cleanTitle.isEmpty) {
+      throw const FormatException('Task title cannot be empty.');
+    }
+    return TaskItem(
+      id: id,
+      title: cleanTitle,
+      listId: listId,
+      createdAt: createdAt.toUtc(),
+      updatedAt: (updatedAt ?? createdAt).toUtc(),
+      dueAt: dueAt?.toUtc(),
+      reminderAt: reminderAt?.toUtc(),
+      notes: notes,
+      priority: priority,
+      repeatRule: repeatRule,
+      category: category,
+      subtasks: subtasks,
+      completed: completed,
+      completedAt: completedAt?.toUtc(),
+      sortOrder: sortOrder,
+      reminderSchedulingFailed: reminderSchedulingFailed,
+    );
+  }
 
   final String id;
   final String title;
   final String listId;
   final DateTime createdAt;
+  final DateTime updatedAt;
   final DateTime? dueAt;
   final DateTime? reminderAt;
   final String notes;
   final TaskPriority priority;
   final RepeatRule repeatRule;
-  final bool locationReminder;
-  final String locationName;
   final String category;
   final List<SubTask> subtasks;
   final bool completed;
   final DateTime? completedAt;
+  final int sortOrder;
+  final bool reminderSchedulingFailed;
 
-  bool get overdue =>
+  bool get overdue => isOverdueAt(DateTime.now());
+
+  bool get dueToday => dueAt == null || isDueTodayAt(DateTime.now());
+
+  bool isOverdueAt(DateTime now) =>
       !completed &&
       dueAt != null &&
-      dueAt!.isBefore(DateTime.now()) &&
-      !isSameDay(dueAt!, DateTime.now());
+      dueAt!.isBefore(now) &&
+      !isSameDay(dueAt!, now);
 
-  bool get dueToday => dueAt == null || isSameDay(dueAt!, DateTime.now());
+  bool isDueTodayAt(DateTime now) => dueAt != null && isSameDay(dueAt!, now);
 
   TaskItem copyWith({
     String? title,
@@ -89,30 +137,33 @@ class TaskItem {
     String? notes,
     TaskPriority? priority,
     RepeatRule? repeatRule,
-    bool? locationReminder,
-    String? locationName,
     String? category,
     List<SubTask>? subtasks,
     bool? completed,
     DateTime? completedAt,
     bool clearCompletedAt = false,
+    DateTime? updatedAt,
+    int? sortOrder,
+    bool? reminderSchedulingFailed,
   }) {
     return TaskItem(
       id: id,
       title: title ?? this.title,
       listId: listId ?? this.listId,
       createdAt: createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       dueAt: clearDueAt ? null : dueAt ?? this.dueAt,
       reminderAt: clearReminderAt ? null : reminderAt ?? this.reminderAt,
       notes: notes ?? this.notes,
       priority: priority ?? this.priority,
       repeatRule: repeatRule ?? this.repeatRule,
-      locationReminder: locationReminder ?? this.locationReminder,
-      locationName: locationName ?? this.locationName,
       category: category ?? this.category,
       subtasks: subtasks ?? this.subtasks,
       completed: completed ?? this.completed,
       completedAt: clearCompletedAt ? null : completedAt ?? this.completedAt,
+      sortOrder: sortOrder ?? this.sortOrder,
+      reminderSchedulingFailed:
+          reminderSchedulingFailed ?? this.reminderSchedulingFailed,
     );
   }
 
@@ -120,18 +171,19 @@ class TaskItem {
     'id': id,
     'title': title,
     'listId': listId,
-    'createdAt': createdAt.toIso8601String(),
-    'dueAt': dueAt?.toIso8601String(),
-    'reminderAt': reminderAt?.toIso8601String(),
+    'createdAt': createdAt.toUtc().toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+    'dueAt': dueAt?.toUtc().toIso8601String(),
+    'reminderAt': reminderAt?.toUtc().toIso8601String(),
     'notes': notes,
     'priority': priority.name,
     'repeatRule': repeatRule.name,
-    'locationReminder': locationReminder,
-    'locationName': locationName,
     'category': category,
     'subtasks': subtasks.map((item) => item.toJson()).toList(),
     'completed': completed,
-    'completedAt': completedAt?.toIso8601String(),
+    'completedAt': completedAt?.toUtc().toIso8601String(),
+    'sortOrder': sortOrder,
+    'reminderSchedulingFailed': reminderSchedulingFailed,
   };
 
   factory TaskItem.fromJson(Map<String, Object?> json) {
@@ -140,7 +192,10 @@ class TaskItem {
       id: json['id']! as String,
       title: json['title']! as String,
       listId: json['listId']! as String,
-      createdAt: DateTime.parse(json['createdAt']! as String),
+      createdAt: DateTime.parse(json['createdAt']! as String).toUtc(),
+      updatedAt:
+          _date(json['updatedAt']) ??
+          DateTime.parse(json['createdAt']! as String).toUtc(),
       dueAt: _date(json['dueAt']),
       reminderAt: _date(json['reminderAt']),
       notes: (json['notes'] as String?) ?? '',
@@ -150,8 +205,6 @@ class TaskItem {
       repeatRule: RepeatRule.values.byName(
         (json['repeatRule'] as String?) ?? RepeatRule.none.name,
       ),
-      locationReminder: (json['locationReminder'] as bool?) ?? false,
-      locationName: (json['locationName'] as String?) ?? '',
       category: (json['category'] as String?) ?? '',
       subtasks: rawSubtasks
           .map(
@@ -160,11 +213,16 @@ class TaskItem {
           .toList(),
       completed: (json['completed'] as bool?) ?? false,
       completedAt: _date(json['completedAt']),
+      sortOrder: (json['sortOrder'] as int?) ?? 0,
+      reminderSchedulingFailed:
+          (json['reminderSchedulingFailed'] as bool?) ?? false,
     );
   }
 
   static DateTime? _date(Object? value) {
-    return value is String && value.isNotEmpty ? DateTime.parse(value) : null;
+    return value is String && value.isNotEmpty
+        ? DateTime.parse(value).toUtc()
+        : null;
   }
 }
 

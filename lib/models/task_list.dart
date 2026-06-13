@@ -8,14 +8,14 @@ class TaskList {
     required this.name,
     required this.colorValue,
     this.kind = ListKind.standard,
-    this.isShared = false,
+    this.sortOrder = 0,
   });
 
   final String id;
   final String name;
   final int colorValue;
   final ListKind kind;
-  final bool isShared;
+  final int sortOrder;
 
   Color get color => Color(colorValue);
 
@@ -23,14 +23,14 @@ class TaskList {
     String? name,
     int? colorValue,
     ListKind? kind,
-    bool? isShared,
+    int? sortOrder,
   }) {
     return TaskList(
       id: id,
       name: name ?? this.name,
       colorValue: colorValue ?? this.colorValue,
       kind: kind ?? this.kind,
-      isShared: isShared ?? this.isShared,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 
@@ -39,7 +39,7 @@ class TaskList {
     'name': name,
     'colorValue': colorValue,
     'kind': kind.name,
-    'isShared': isShared,
+    'sortOrder': sortOrder,
   };
 
   factory TaskList.fromJson(Map<String, Object?> json) {
@@ -50,7 +50,7 @@ class TaskList {
       kind: ListKind.values.byName(
         (json['kind'] as String?) ?? ListKind.standard.name,
       ),
-      isShared: (json['isShared'] as bool?) ?? false,
+      sortOrder: (json['sortOrder'] as int?) ?? 0,
     );
   }
 }

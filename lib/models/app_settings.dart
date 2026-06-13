@@ -1,55 +1,55 @@
+enum AppLanguage { system, english, simplifiedChinese }
+
 class AppSettings {
   const AppSettings({
-    this.themeId = 'snow',
+    this.themeId = 'system',
     this.largeText = false,
-    this.continuousReminder = false,
-    this.cloudSync = false,
-    this.calendarSync = false,
     this.faceId = false,
+    this.hasCompletedOnboarding = false,
+    this.language = AppLanguage.system,
   });
 
   final String themeId;
   final bool largeText;
-  final bool continuousReminder;
-  final bool cloudSync;
-  final bool calendarSync;
   final bool faceId;
+  final bool hasCompletedOnboarding;
+  final AppLanguage language;
 
   AppSettings copyWith({
     String? themeId,
     bool? largeText,
-    bool? continuousReminder,
-    bool? cloudSync,
-    bool? calendarSync,
     bool? faceId,
+    bool? hasCompletedOnboarding,
+    AppLanguage? language,
   }) {
     return AppSettings(
       themeId: themeId ?? this.themeId,
       largeText: largeText ?? this.largeText,
-      continuousReminder: continuousReminder ?? this.continuousReminder,
-      cloudSync: cloudSync ?? this.cloudSync,
-      calendarSync: calendarSync ?? this.calendarSync,
       faceId: faceId ?? this.faceId,
+      hasCompletedOnboarding:
+          hasCompletedOnboarding ?? this.hasCompletedOnboarding,
+      language: language ?? this.language,
     );
   }
 
   Map<String, Object?> toJson() => {
     'themeId': themeId,
     'largeText': largeText,
-    'continuousReminder': continuousReminder,
-    'cloudSync': cloudSync,
-    'calendarSync': calendarSync,
     'faceId': faceId,
+    'hasCompletedOnboarding': hasCompletedOnboarding,
+    'language': language.name,
   };
 
   factory AppSettings.fromJson(Map<String, Object?> json) {
     return AppSettings(
-      themeId: (json['themeId'] as String?) ?? 'snow',
+      themeId: (json['themeId'] as String?) ?? 'system',
       largeText: (json['largeText'] as bool?) ?? false,
-      continuousReminder: (json['continuousReminder'] as bool?) ?? false,
-      cloudSync: (json['cloudSync'] as bool?) ?? false,
-      calendarSync: (json['calendarSync'] as bool?) ?? false,
       faceId: (json['faceId'] as bool?) ?? false,
+      hasCompletedOnboarding:
+          (json['hasCompletedOnboarding'] as bool?) ?? false,
+      language: AppLanguage.values.byName(
+        (json['language'] as String?) ?? AppLanguage.system.name,
+      ),
     );
   }
 }
