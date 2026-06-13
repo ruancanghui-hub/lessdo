@@ -2,9 +2,22 @@ import 'package:flutter/foundation.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../controllers/app_controller.dart';
 import '../models/task_item.dart';
 import 'notification_service.dart';
+
+abstract interface class NotificationCoordinator {
+  Future<void> schedule(TaskItem task);
+
+  Future<void> cancel(String taskId);
+}
+
+abstract interface class AuthenticationCoordinator {
+  Future<bool> authenticate();
+}
+
+abstract interface class SharingCoordinator {
+  Future<void> share({required String title, required String text});
+}
 
 class NotificationServiceCoordinator implements NotificationCoordinator {
   NotificationServiceCoordinator(this._service);

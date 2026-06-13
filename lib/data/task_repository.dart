@@ -5,7 +5,20 @@ import '../models/task_list.dart';
 
 enum ListDeletionStrategy { moveToInbox, deleteTasks }
 
+class RepositorySnapshot {
+  RepositorySnapshot({
+    required Iterable<TaskList> lists,
+    required Iterable<TaskItem> tasks,
+  }) : lists = List.unmodifiable(lists),
+       tasks = List.unmodifiable(tasks);
+
+  final List<TaskList> lists;
+  final List<TaskItem> tasks;
+}
+
 abstract interface class TaskRepository {
+  Future<RepositorySnapshot> loadSnapshot();
+
   Future<List<TaskList>> loadLists();
 
   Future<List<TaskItem>> loadTasks();
@@ -20,7 +33,10 @@ abstract interface class TaskRepository {
 
   Future<void> saveList(TaskList list);
 
-  Future<void> deleteList(String listId, ListDeletionStrategy strategy);
+  Future<RepositorySnapshot> deleteList(
+    String listId,
+    ListDeletionStrategy strategy,
+  );
 
   Future<void> saveActiveFocus(ActiveFocusSession? session);
 

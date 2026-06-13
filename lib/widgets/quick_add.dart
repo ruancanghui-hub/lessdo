@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class QuickAdd extends StatefulWidget {
   const QuickAdd({super.key, required this.onSubmit, this.grocery = false});
 
-  final ValueChanged<String> onSubmit;
+  final Future<void> Function(String) onSubmit;
   final bool grocery;
 
   @override
@@ -13,6 +13,8 @@ class QuickAdd extends StatefulWidget {
 
 class _QuickAddState extends State<QuickAdd> {
   final _controller = TextEditingController();
+  var _submitting = false;
+  String? _errorText;
 
   @override
   void dispose() {
@@ -20,12 +22,25 @@ class _QuickAddState extends State<QuickAdd> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final value = _controller.text.trim();
-    if (value.isEmpty) return;
-    widget.onSubmit(value);
-    _controller.clear();
-    setState(() {});
+    if (value.isEmpty || _submitting) return;
+    setState(() {
+      _submitting = true;
+      _errorText = null;
+    });
+    try {
+      await widget.onSubmit(value);
+      _controller.clear();
+    } catch (error) {
+      _errorText = error is StateError
+          ? error.message.toString()
+          : 'Could not add task';
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
   }
 
   @override
@@ -53,6 +68,7 @@ class _QuickAddState extends State<QuickAdd> {
                 Expanded(
                   child: TextField(
                     controller: _controller,
+                    enabled: !_submitting,
                     onChanged: (_) => setState(() {}),
                     onSubmitted: (_) => _submit(),
                     textInputAction: TextInputAction.done,
@@ -68,7 +84,7 @@ class _QuickAddState extends State<QuickAdd> {
                 ),
                 if (_controller.text.isNotEmpty)
                   TextButton(
-                    onPressed: _submit,
+                    onPressed: _submitting ? null : _submit,
                     child: const Text(
                       'Add',
                       style: TextStyle(fontWeight: FontWeight.w700),
@@ -84,18 +100,27 @@ class _QuickAddState extends State<QuickAdd> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text.rich(
-            TextSpan(
-              text: 'Smart input understands ',
-              children: [
-                TextSpan(
-                  text: '“tomorrow at 2pm”',
-                  style: TextStyle(fontStyle: FontStyle.italic),
-                ),
-              ],
+          if (_errorText != null)
+            Text(
+              _errorText!,
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.error,
+              ),
+            )
+          else
+            const Text.rich(
+              TextSpan(
+                text: 'Smart input understands ',
+                children: [
+                  TextSpan(
+                    text: '“tomorrow at 2pm”',
+                    style: TextStyle(fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
+              style: TextStyle(fontSize: 11, color: Color(0xFF999CA4)),
             ),
-            style: TextStyle(fontSize: 11, color: Color(0xFF999CA4)),
-          ),
         ],
       ),
     );

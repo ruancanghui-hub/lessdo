@@ -9,20 +9,7 @@ import '../models/focus_session.dart';
 import '../models/smart_task_parser.dart';
 import '../models/task_item.dart';
 import '../models/task_list.dart';
-
-abstract interface class NotificationCoordinator {
-  Future<void> schedule(TaskItem task);
-
-  Future<void> cancel(String taskId);
-}
-
-abstract interface class AuthenticationCoordinator {
-  Future<bool> authenticate();
-}
-
-abstract interface class SharingCoordinator {
-  Future<void> share({required String title, required String text});
-}
+import '../services/platform_coordinators.dart';
 
 class RepositoryReadException implements Exception {
   RepositoryReadException(this.operation, this.cause);
@@ -42,6 +29,32 @@ class RepositoryWriteException implements Exception {
 
   @override
   String toString() => 'RepositoryWriteException($operation)';
+}
+
+class OperationPartialFailure implements Exception {
+  OperationPartialFailure({
+    required this.operation,
+    required this.committed,
+    required this.cause,
+  });
+
+  final String operation;
+  final bool committed;
+  final Object cause;
+
+  @override
+  String toString() =>
+      'OperationPartialFailure($operation, committed: $committed)';
+}
+
+class OperationWarning {
+  OperationWarning({
+    required this.operation,
+    Iterable<String> failedTaskIds = const [],
+  }) : failedTaskIds = List.unmodifiable(failedTaskIds);
+
+  final String operation;
+  final List<String> failedTaskIds;
 }
 
 class AppController extends ChangeNotifier {
@@ -74,6 +87,7 @@ class AppController extends ChangeNotifier {
   List<FocusSession> _sessions = const [];
   ActiveFocusSession? _activeFocus;
   AppSettings _settings = const AppSettings();
+  List<OperationWarning> _operationWarnings = const [];
 
   List<TaskList> get lists => _lists;
 
@@ -87,20 +101,20 @@ class AppController extends ChangeNotifier {
 
   AppSettings get settings => _settings;
 
+  List<OperationWarning> get operationWarnings => _operationWarnings;
+
   Future<void> load() async {
     try {
       final values = await Future.wait<Object?>([
-        _repository.loadLists(),
-        _repository.loadTasks(),
+        _repository.loadSnapshot(),
         _repository.loadFocusHistory(),
         _repository.loadActiveFocus(),
         _settingsRepository.load(),
       ]);
-      _lists = List.unmodifiable(values[0]! as List<TaskList>);
-      _tasks = List.unmodifiable(values[1]! as List<TaskItem>);
-      _sessions = List.unmodifiable(values[2]! as List<FocusSession>);
-      _activeFocus = values[3] as ActiveFocusSession?;
-      _settings = values[4]! as AppSettings;
+      _publishSnapshot(values[0]! as RepositorySnapshot);
+      _sessions = List.unmodifiable(values[1]! as List<FocusSession>);
+      _activeFocus = values[2] as ActiveFocusSession?;
+      _settings = values[3]! as AppSettings;
       notifyListeners();
     } catch (error) {
       throw RepositoryReadException('load', error);
@@ -151,25 +165,11 @@ class AppController extends ChangeNotifier {
       sortOrder: _nextTaskSortOrder(),
     );
 
-    await _write('saveTask', () => _repository.saveTask(task));
-    _tasks = _sortedTasks([..._tasks, task]);
-    notifyListeners();
-    await _syncNotification(task);
-    return task;
+    return _saveTaskAndSync(task);
   }
 
   Future<void> saveTask(TaskItem task) async {
-    await _write('saveTask', () => _repository.saveTask(task));
-    final replaced = [
-      for (final item in _tasks)
-        if (item.id == task.id) task else item,
-    ];
-    if (!replaced.any((item) => item.id == task.id)) {
-      replaced.add(task);
-    }
-    _tasks = _sortedTasks(replaced);
-    notifyListeners();
-    await _syncNotification(task);
+    await _saveTaskAndSync(task);
   }
 
   Future<void> toggleTask(String id) async {
@@ -189,7 +189,7 @@ class AppController extends ChangeNotifier {
     await _write('deleteTask', () => _repository.deleteTask(id));
     _tasks = List.unmodifiable(_tasks.where((task) => task.id != id));
     notifyListeners();
-    await _notifications.cancel(id);
+    await _cancelWithWarning('deleteTaskReminder', [id]);
   }
 
   Future<TaskList> addList({
@@ -224,18 +224,21 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> deleteList(String listId, ListDeletionStrategy strategy) async {
-    await _write('deleteList', () => _repository.deleteList(listId, strategy));
+    final deletedTaskIds = strategy == ListDeletionStrategy.deleteTasks
+        ? _tasks
+              .where((task) => task.listId == listId)
+              .map((task) => task.id)
+              .toList()
+        : const <String>[];
+    late final RepositorySnapshot snapshot;
     try {
-      final values = await Future.wait([
-        _repository.loadLists(),
-        _repository.loadTasks(),
-      ]);
-      _lists = List.unmodifiable(values[0] as List<TaskList>);
-      _tasks = List.unmodifiable(values[1] as List<TaskItem>);
-      notifyListeners();
+      snapshot = await _repository.deleteList(listId, strategy);
     } catch (error) {
-      throw RepositoryReadException('reloadAfterDeleteList', error);
+      throw RepositoryWriteException('deleteList', error);
     }
+    _publishSnapshot(snapshot);
+    notifyListeners();
+    await _cancelWithWarning('deleteListReminders', deletedTaskIds);
   }
 
   Future<void> updateSettings(AppSettings value) async {
@@ -294,6 +297,9 @@ class AppController extends ChangeNotifier {
       ]);
     }
     notifyListeners();
+    if (completedTaskId != null) {
+      await _cancelWithWarning('completeFocusReminder', [completedTaskId]);
+    }
   }
 
   Future<void> addSession({
@@ -313,11 +319,124 @@ class AppController extends ChangeNotifier {
     );
   }
 
-  Future<void> _syncNotification(TaskItem task) {
-    if (task.reminderAt == null || task.completed) {
-      return _notifications.cancel(task.id);
+  Future<void> retryReminder(String taskId) async {
+    final task = taskById(taskId);
+    if (task.reminderAt == null || task.completed) return;
+    try {
+      await _notifications.schedule(task);
+    } catch (_) {
+      _recordWarning('scheduleReminder', [task.id]);
+      return;
     }
-    return _notifications.schedule(task);
+    if (task.reminderSchedulingFailed) {
+      await _persistReminderState(
+        task.copyWith(reminderSchedulingFailed: false),
+        operation: 'clearReminderFailure',
+        committedTask: task,
+      );
+    }
+  }
+
+  Future<TaskItem> _saveTaskAndSync(TaskItem task) async {
+    await _write('saveTask', () => _repository.saveTask(task));
+    if (task.reminderAt == null || task.completed) {
+      _publishTask(task);
+      notifyListeners();
+      await _cancelWithWarning('cancelReminder', [task.id]);
+      return task;
+    }
+
+    try {
+      await _notifications.schedule(task);
+    } catch (_) {
+      final failedTask = task.copyWith(reminderSchedulingFailed: true);
+      await _persistReminderState(
+        failedTask,
+        operation: 'persistReminderFailure',
+        committedTask: task,
+      );
+      _recordWarning('scheduleReminder', [task.id]);
+      return failedTask;
+    }
+
+    if (task.reminderSchedulingFailed) {
+      final clearedTask = task.copyWith(reminderSchedulingFailed: false);
+      await _persistReminderState(
+        clearedTask,
+        operation: 'clearReminderFailure',
+        committedTask: task,
+      );
+      return clearedTask;
+    }
+    _publishTask(task);
+    notifyListeners();
+    return task;
+  }
+
+  Future<void> _persistReminderState(
+    TaskItem task, {
+    required String operation,
+    required TaskItem committedTask,
+  }) async {
+    try {
+      await _repository.saveTask(task);
+    } catch (error) {
+      try {
+        _publishSnapshot(await _repository.loadSnapshot());
+        notifyListeners();
+      } catch (_) {
+        _publishTask(committedTask);
+        notifyListeners();
+      }
+      throw OperationPartialFailure(
+        operation: operation,
+        committed: true,
+        cause: error,
+      );
+    }
+    _publishTask(task);
+    notifyListeners();
+  }
+
+  Future<void> _cancelWithWarning(
+    String operation,
+    Iterable<String> taskIds,
+  ) async {
+    final failedIds = <String>[];
+    for (final taskId in taskIds) {
+      try {
+        await _notifications.cancel(taskId);
+      } catch (_) {
+        failedIds.add(taskId);
+      }
+    }
+    if (failedIds.isNotEmpty) {
+      _recordWarning(operation, failedIds);
+    }
+  }
+
+  void _recordWarning(String operation, Iterable<String> failedTaskIds) {
+    _operationWarnings = List.unmodifiable([
+      ..._operationWarnings,
+      OperationWarning(operation: operation, failedTaskIds: failedTaskIds),
+    ]);
+    notifyListeners();
+  }
+
+  void _publishSnapshot(RepositorySnapshot snapshot) {
+    _lists = List.unmodifiable(snapshot.lists);
+    _tasks = List.unmodifiable(snapshot.tasks);
+  }
+
+  void _publishTask(TaskItem task) {
+    final replaced = [
+      for (final item in _tasks)
+        if (item.id == task.id) task else item,
+    ];
+    if (!replaced.any((item) => item.id == task.id)) {
+      replaced.add(task);
+    }
+    _tasks = _sortedTasks(replaced);
   }
 
   Future<void> _write(String operation, Future<void> Function() action) async {

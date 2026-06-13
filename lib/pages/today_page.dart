@@ -125,7 +125,11 @@ class TodayPage extends StatelessWidget {
             ],
           ),
         ),
-        QuickAdd(onSubmit: (text) => store.addTask(text: text)),
+        QuickAdd(
+          onSubmit: (text) async {
+            await store.addTask(text: text);
+          },
+        ),
       ],
     );
   }

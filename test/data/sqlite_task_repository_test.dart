@@ -114,10 +114,13 @@ void main() {
     );
     await repository.saveTask(_task('task-1', listId: 'work'));
 
-    await repository.deleteList('work', ListDeletionStrategy.moveToInbox);
+    final snapshot = await repository.deleteList(
+      'work',
+      ListDeletionStrategy.moveToInbox,
+    );
 
-    expect((await repository.loadTasks()).single.listId, 'inbox');
-    expect((await repository.loadLists()).map((list) => list.id), ['inbox']);
+    expect(snapshot.tasks.single.listId, 'inbox');
+    expect(snapshot.lists.map((list) => list.id), ['inbox']);
   });
 
   test('deleting a list can atomically delete its tasks', () async {
@@ -126,10 +129,13 @@ void main() {
     );
     await repository.saveTask(_task('task-1', listId: 'work'));
 
-    await repository.deleteList('work', ListDeletionStrategy.deleteTasks);
+    final snapshot = await repository.deleteList(
+      'work',
+      ListDeletionStrategy.deleteTasks,
+    );
 
-    expect(await repository.loadTasks(), isEmpty);
-    expect((await repository.loadLists()).map((list) => list.id), ['inbox']);
+    expect(snapshot.tasks, isEmpty);
+    expect(snapshot.lists.map((list) => list.id), ['inbox']);
   });
 
   test('concurrent writes load in explicit deterministic order', () async {

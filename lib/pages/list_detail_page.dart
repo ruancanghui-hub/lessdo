@@ -86,8 +86,9 @@ class ListDetailPage extends StatelessWidget {
                 ),
                 QuickAdd(
                   grocery: list.kind == ListKind.grocery,
-                  onSubmit: (text) =>
-                      store.addTask(text: text, listId: list.id),
+                  onSubmit: (text) async {
+                    await store.addTask(text: text, listId: list.id);
+                  },
                 ),
               ],
             ),

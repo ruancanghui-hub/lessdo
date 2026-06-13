@@ -7,6 +7,7 @@ import 'package:lessdo/models/app_settings.dart';
 import 'package:lessdo/models/focus_session.dart';
 import 'package:lessdo/models/task_item.dart';
 import 'package:lessdo/models/task_list.dart';
+import 'package:lessdo/services/platform_coordinators.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -58,6 +59,162 @@ void main() {
     expect(controller.settings.toJson(), settings.toJson());
     expect((await settingsRepository.load()).toJson(), settings.toJson());
   });
+
+  test(
+    'notification scheduling failure persists and publishes retry state',
+    () async {
+      final repository = _MemoryTaskRepository();
+      final notifications = _FakeNotificationCoordinator()..failSchedule = true;
+      final controller = await _controller(
+        repository: repository,
+        notifications: notifications,
+      );
+
+      final task = await controller.addTask(
+        title: 'Pay bill',
+        reminderAt: DateTime.utc(2026, 1, 2),
+      );
+
+      expect(task.reminderSchedulingFailed, isTrue);
+      expect(controller.tasks.single.reminderSchedulingFailed, isTrue);
+      expect(repository.tasks.single.reminderSchedulingFailed, isTrue);
+      expect(controller.operationWarnings.single.operation, 'scheduleReminder');
+
+      notifications.failSchedule = false;
+      await controller.retryReminder(task.id);
+
+      expect(controller.tasks.single.reminderSchedulingFailed, isFalse);
+      expect(repository.tasks.single.reminderSchedulingFailed, isFalse);
+      expect(notifications.scheduledTaskIds, ['task-1', 'task-1']);
+    },
+  );
+
+  test(
+    'failed reminder status persistence reports partial failure and reloads',
+    () async {
+      final repository = _FailSecondSaveTaskRepository();
+      final controller = await _controller(
+        repository: repository,
+        notifications: _FakeNotificationCoordinator()..failSchedule = true,
+      );
+
+      await expectLater(
+        controller.addTask(
+          title: 'Pay bill',
+          reminderAt: DateTime.utc(2026, 1, 2),
+        ),
+        throwsA(isA<OperationPartialFailure>()),
+      );
+
+      expect(controller.tasks.single.reminderSchedulingFailed, isFalse);
+      expect(repository.loadSnapshotCalls, 2);
+    },
+  );
+
+  test(
+    'partial reminder failure keeps first committed save when reload fails',
+    () async {
+      final repository = _FailSecondSaveTaskRepository()
+        ..failSnapshotAfterInitialLoad = true;
+      final controller = await _controller(
+        repository: repository,
+        notifications: _FakeNotificationCoordinator()..failSchedule = true,
+      );
+
+      await expectLater(
+        controller.addTask(
+          title: 'Pay bill',
+          reminderAt: DateTime.utc(2026, 1, 2),
+        ),
+        throwsA(isA<OperationPartialFailure>()),
+      );
+
+      expect(controller.tasks.single.title, 'Pay bill');
+      expect(controller.tasks.single.reminderSchedulingFailed, isFalse);
+    },
+  );
+
+  test(
+    'deleteTasks uses transaction snapshot and cancellation failures warn',
+    () async {
+      final repository = _MemoryTaskRepository(
+        lists: const [
+          TaskList(id: 'inbox', name: 'Inbox', colorValue: 0),
+          TaskList(id: 'work', name: 'Work', colorValue: 1, sortOrder: 1),
+        ],
+        tasks: [
+          _task('task-1', listId: 'work'),
+          _task('task-2', listId: 'work'),
+        ],
+      );
+      final notifications = _FakeNotificationCoordinator()
+        ..failedCancellationIds.add('task-2');
+      final controller = await _controller(
+        repository: repository,
+        notifications: notifications,
+      );
+      repository.failReads = true;
+
+      await controller.deleteList('work', ListDeletionStrategy.deleteTasks);
+
+      expect(controller.lists.map((list) => list.id), ['inbox']);
+      expect(controller.tasks, isEmpty);
+      expect(repository.loadSnapshotCalls, 1);
+      expect(notifications.cancelledTaskIds, ['task-1', 'task-2']);
+      expect(controller.operationWarnings.single.failedTaskIds, ['task-2']);
+    },
+  );
+
+  test(
+    'moveToInbox keeps reminders and publishes transaction snapshot',
+    () async {
+      final repository = _MemoryTaskRepository(
+        lists: const [
+          TaskList(id: 'inbox', name: 'Inbox', colorValue: 0),
+          TaskList(id: 'work', name: 'Work', colorValue: 1, sortOrder: 1),
+        ],
+        tasks: [_task('task-1', listId: 'work')],
+      );
+      final notifications = _FakeNotificationCoordinator();
+      final controller = await _controller(
+        repository: repository,
+        notifications: notifications,
+      );
+      repository.failReads = true;
+
+      await controller.deleteList('work', ListDeletionStrategy.moveToInbox);
+
+      expect(controller.tasks.single.listId, 'inbox');
+      expect(repository.loadSnapshotCalls, 1);
+      expect(notifications.cancelledTaskIds, isEmpty);
+    },
+  );
+
+  test(
+    'completeFocus keeps completion when notification cancellation fails',
+    () async {
+      final repository = _MemoryTaskRepository(tasks: [_task('task-1')]);
+      final notifications = _FakeNotificationCoordinator()
+        ..failedCancellationIds.add('task-1');
+      final controller = await _controller(
+        repository: repository,
+        notifications: notifications,
+      );
+      final history = FocusSession(
+        id: 'history-1',
+        taskId: 'task-1',
+        taskTitle: 'Deep work',
+        minutes: 1,
+        completedAt: DateTime.utc(2026, 1, 1, 0, 1),
+      );
+
+      await controller.completeFocus(history, completedTaskId: 'task-1');
+
+      expect(controller.tasks.single.completed, isTrue);
+      expect(repository.tasks.single.completed, isTrue);
+      expect(controller.operationWarnings.single.failedTaskIds, ['task-1']);
+    },
+  );
 }
 
 class _ThrowingTaskRepository extends _MemoryTaskRepository {
@@ -67,13 +224,33 @@ class _ThrowingTaskRepository extends _MemoryTaskRepository {
   }
 }
 
+class _FailSecondSaveTaskRepository extends _MemoryTaskRepository {
+  var saveCalls = 0;
+
+  @override
+  Future<void> saveTask(TaskItem task) async {
+    saveCalls += 1;
+    if (saveCalls == 2) throw StateError('status write failed');
+    await super.saveTask(task);
+  }
+}
+
 class _MemoryTaskRepository implements TaskRepository {
-  final List<TaskList> _lists = [
-    const TaskList(id: 'inbox', name: 'Inbox', colorValue: 0),
-  ];
-  final List<TaskItem> _tasks = [];
+  _MemoryTaskRepository({List<TaskList>? lists, List<TaskItem>? tasks})
+    : _lists = List.of(
+        lists ?? const [TaskList(id: 'inbox', name: 'Inbox', colorValue: 0)],
+      ),
+      _tasks = List.of(tasks ?? const []);
+
+  final List<TaskList> _lists;
+  final List<TaskItem> _tasks;
   final List<FocusSession> _history = [];
   ActiveFocusSession? _activeFocus;
+  bool failReads = false;
+  bool failSnapshotAfterInitialLoad = false;
+  int loadSnapshotCalls = 0;
+
+  List<TaskItem> get tasks => List.unmodifiable(_tasks);
 
   @override
   Future<void> completeFocus(
@@ -82,10 +259,33 @@ class _MemoryTaskRepository implements TaskRepository {
   }) async {
     _history.insert(0, history);
     _activeFocus = null;
+    if (completedTaskId != null) {
+      final index = _tasks.indexWhere((task) => task.id == completedTaskId);
+      _tasks[index] = _tasks[index].copyWith(
+        completed: true,
+        completedAt: history.completedAt,
+        updatedAt: history.completedAt,
+      );
+    }
   }
 
   @override
-  Future<void> deleteList(String listId, ListDeletionStrategy strategy) async {}
+  Future<RepositorySnapshot> deleteList(
+    String listId,
+    ListDeletionStrategy strategy,
+  ) async {
+    if (strategy == ListDeletionStrategy.deleteTasks) {
+      _tasks.removeWhere((task) => task.listId == listId);
+    } else {
+      for (var index = 0; index < _tasks.length; index++) {
+        if (_tasks[index].listId == listId) {
+          _tasks[index] = _tasks[index].copyWith(listId: 'inbox');
+        }
+      }
+    }
+    _lists.removeWhere((list) => list.id == listId);
+    return RepositorySnapshot(lists: _lists, tasks: _tasks);
+  }
 
   @override
   Future<void> deleteTask(String taskId) async {
@@ -99,10 +299,25 @@ class _MemoryTaskRepository implements TaskRepository {
   Future<List<FocusSession>> loadFocusHistory() async => List.of(_history);
 
   @override
-  Future<List<TaskList>> loadLists() async => List.of(_lists);
+  Future<List<TaskList>> loadLists() async {
+    if (failReads) throw StateError('read disabled');
+    return List.of(_lists);
+  }
 
   @override
-  Future<List<TaskItem>> loadTasks() async => List.of(_tasks);
+  Future<RepositorySnapshot> loadSnapshot() async {
+    loadSnapshotCalls += 1;
+    if (failSnapshotAfterInitialLoad && loadSnapshotCalls > 1) {
+      throw StateError('snapshot unavailable');
+    }
+    return RepositorySnapshot(lists: _lists, tasks: _tasks);
+  }
+
+  @override
+  Future<List<TaskItem>> loadTasks() async {
+    if (failReads) throw StateError('read disabled');
+    return List.of(_tasks);
+  }
 
   @override
   Future<void> saveActiveFocus(ActiveFocusSession? session) async {
@@ -114,14 +329,60 @@ class _MemoryTaskRepository implements TaskRepository {
 
   @override
   Future<void> saveTask(TaskItem task) async {
-    _tasks.add(task);
+    final index = _tasks.indexWhere((item) => item.id == task.id);
+    if (index == -1) {
+      _tasks.add(task);
+    } else {
+      _tasks[index] = task;
+    }
   }
 }
 
 class _FakeNotificationCoordinator implements NotificationCoordinator {
-  @override
-  Future<void> cancel(String taskId) async {}
+  bool failSchedule = false;
+  final Set<String> failedCancellationIds = {};
+  final List<String> scheduledTaskIds = [];
+  final List<String> cancelledTaskIds = [];
 
   @override
-  Future<void> schedule(TaskItem task) async {}
+  Future<void> cancel(String taskId) async {
+    cancelledTaskIds.add(taskId);
+    if (failedCancellationIds.contains(taskId)) {
+      throw StateError('cancel failed');
+    }
+  }
+
+  @override
+  Future<void> schedule(TaskItem task) async {
+    scheduledTaskIds.add(task.id);
+    if (failSchedule) throw StateError('schedule failed');
+  }
+}
+
+Future<AppController> _controller({
+  required _MemoryTaskRepository repository,
+  required _FakeNotificationCoordinator notifications,
+}) async {
+  SharedPreferences.setMockInitialValues({});
+  final controller = AppController(
+    repository: repository,
+    settingsRepository: SettingsRepository(
+      await SharedPreferences.getInstance(),
+    ),
+    notifications: notifications,
+    idFactory: () => 'task-1',
+    now: () => DateTime.utc(2026),
+  );
+  await controller.load();
+  return controller;
+}
+
+TaskItem _task(String id, {String listId = 'inbox'}) {
+  return TaskItem.create(
+    id: id,
+    title: id,
+    listId: listId,
+    createdAt: DateTime.utc(2026),
+    reminderAt: DateTime.utc(2026, 1, 2),
+  );
 }

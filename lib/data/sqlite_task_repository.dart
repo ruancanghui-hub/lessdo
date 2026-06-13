@@ -15,6 +15,11 @@ class SqliteTaskRepository implements TaskRepository {
   final AppDatabase _database;
 
   @override
+  Future<RepositorySnapshot> loadSnapshot() {
+    return _database.transaction(_loadSnapshot);
+  }
+
+  @override
   Future<List<TaskList>> loadLists() async {
     final rows = await _database.rawQuery(
       'SELECT * FROM task_lists ORDER BY sort_order, id',
@@ -106,7 +111,10 @@ class SqliteTaskRepository implements TaskRepository {
   }
 
   @override
-  Future<void> deleteList(String listId, ListDeletionStrategy strategy) {
+  Future<RepositorySnapshot> deleteList(
+    String listId,
+    ListDeletionStrategy strategy,
+  ) {
     if (listId == 'inbox') {
       throw ArgumentError.value(listId, 'listId', 'Inbox cannot be deleted.');
     }
@@ -131,6 +139,7 @@ class SqliteTaskRepository implements TaskRepository {
         where: 'id = ?',
         whereArgs: [listId],
       );
+      return _loadSnapshot(transaction);
     });
   }
 
@@ -183,6 +192,33 @@ class SqliteTaskRepository implements TaskRepository {
         _subtaskToRow(task.id, task.subtasks[index], index),
       );
     }
+  }
+
+  Future<RepositorySnapshot> _loadSnapshot(DatabaseExecutor executor) async {
+    final listRows = await executor.query(
+      'task_lists',
+      orderBy: 'sort_order, id',
+    );
+    final taskRows = await executor.query('tasks', orderBy: 'sort_order, id');
+    final subtaskRows = await executor.query(
+      'subtasks',
+      orderBy: 'task_id, sort_order, id',
+    );
+    final subtasksByTask = <String, List<SubTask>>{};
+    for (final row in subtaskRows) {
+      subtasksByTask
+          .putIfAbsent(row['task_id']! as String, () => [])
+          .add(_subtaskFromRow(row));
+    }
+    return RepositorySnapshot(
+      lists: listRows.map(_listFromRow),
+      tasks: taskRows.map(
+        (row) => _taskFromRow(
+          row,
+          List.unmodifiable(subtasksByTask[row['id']] ?? const []),
+        ),
+      ),
+    );
   }
 }
 
