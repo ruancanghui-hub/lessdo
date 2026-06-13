@@ -147,6 +147,7 @@ void main() {
 
       expect(notifications.permissionRequests, 2);
       expect(notifications.scheduledTaskIds, ['task-1']);
+      expect(notifications.schedulePermissionRequests, [true, false]);
       expect(controller.tasks.single.reminderSchedulingFailed, isFalse);
     },
   );
@@ -419,7 +420,7 @@ void main() {
     );
 
     final navigation = expectLater(
-      controller.navigationTaskIds,
+      controller.openTaskRequests,
       emits('task-1'),
     );
     await controller.handleNotificationAction(
@@ -428,6 +429,48 @@ void main() {
 
     await navigation;
   });
+
+  test('launch open action is buffered until RootPage subscribes', () async {
+    final notifications = _FakeNotificationCoordinator()
+      ..launchNotificationAction = const NotificationAction.open('task-1');
+    final controller = await _controller(
+      repository: _MemoryTaskRepository(tasks: [_task('task-1')]),
+      notifications: notifications,
+    );
+
+    await expectLater(controller.openTaskRequests, emits('task-1'));
+  });
+
+  test('notification action reconciles reminders after handling', () async {
+    final notifications = _FakeNotificationCoordinator();
+    final controller = await _controller(
+      repository: _MemoryTaskRepository(tasks: [_task('task-1')]),
+      notifications: notifications,
+    );
+    final reconcilesAfterLoad = notifications.reconcileCalls;
+
+    await controller.handleNotificationAction(
+      const NotificationAction.open('task-1'),
+    );
+
+    expect(notifications.reconcileCalls, reconcilesAfterLoad + 1);
+  });
+
+  test(
+    'reconcile recovery clears the controller reminder failure state',
+    () async {
+      final notifications = _FakeNotificationCoordinator()
+        ..recoveredTaskIds.add('task-1');
+      final controller = await _controller(
+        repository: _MemoryTaskRepository(
+          tasks: [_task('task-1').copyWith(reminderSchedulingFailed: true)],
+        ),
+        notifications: notifications,
+      );
+
+      expect(controller.tasks.single.reminderSchedulingFailed, isFalse);
+    },
+  );
 }
 
 class _ThrowingTaskRepository extends _MemoryTaskRepository {
@@ -598,8 +641,12 @@ class _FakeNotificationCoordinator implements NotificationCoordinatorContract {
   final List<String> scheduledTaskIds = [];
   final List<String> cancelledTaskIds = [];
   final List<String> snoozedTaskIds = [];
+  final List<bool> schedulePermissionRequests = [];
   final StreamController<NotificationAction> actionController =
       StreamController<NotificationAction>.broadcast();
+  NotificationAction? launchNotificationAction;
+  int reconcileCalls = 0;
+  final Set<String> recoveredTaskIds = {};
 
   @override
   Stream<NotificationAction> get actions => actionController.stream;
@@ -625,6 +672,7 @@ class _FakeNotificationCoordinator implements NotificationCoordinatorContract {
     TaskItem task, {
     bool requestPermission = true,
   }) async {
+    schedulePermissionRequests.add(requestPermission);
     if (requestPermission) {
       final permission = await this.requestPermission();
       if (permission != NotificationPermissionStatus.granted) {
@@ -643,7 +691,7 @@ class _FakeNotificationCoordinator implements NotificationCoordinatorContract {
   }
 
   @override
-  Future<NotificationAction?> launchAction() async => null;
+  Future<NotificationAction?> launchAction() async => launchNotificationAction;
 
   @override
   Future<NotificationPermissionStatus> permissionStatus() async =>
@@ -653,10 +701,12 @@ class _FakeNotificationCoordinator implements NotificationCoordinatorContract {
 
   @override
   Future<NotificationReconcileReport> reconcile() async {
+    reconcileCalls += 1;
     return NotificationReconcileReport(
       cancelledOrphanTaskIds: const [],
       scheduledMissingTaskIds: const [],
       failedTaskIds: const [],
+      recoveredTaskIds: recoveredTaskIds,
     );
   }
 }

@@ -87,6 +87,22 @@ void main() {
 
       expect(result, tz.TZDateTime(location, 2026, 3, 31, 18, 45));
     });
+
+    test('monthly recurrence produces twelve future calendar occurrences', () {
+      final location = tz.getLocation('Asia/Shanghai');
+
+      final occurrences = reminderOccurrences(
+        anchor: tz.TZDateTime(location, 2026, 1, 31, 18, 45),
+        repeatRule: RepeatRule.monthly,
+        now: tz.TZDateTime(location, 2026, 1, 31, 19),
+        location: location,
+      );
+
+      expect(occurrences, hasLength(12));
+      expect(occurrences[0], tz.TZDateTime(location, 2026, 2, 28, 18, 45));
+      expect(occurrences[1], tz.TZDateTime(location, 2026, 3, 31, 18, 45));
+      expect(occurrences[11], tz.TZDateTime(location, 2027, 1, 31, 18, 45));
+    });
   });
 
   group('stableNotificationId', () {

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -21,6 +22,18 @@ class NotificationTimeZoneInitialization {
 
   final tz.Location location;
   final NotificationTimeZoneFallbackWarning? warning;
+}
+
+const _notificationPermissionRequestedKey = 'notification_permission_requested';
+
+NotificationPermissionStatus resolveNotificationPermissionStatus({
+  required bool enabled,
+  required bool hasRequestedPermission,
+}) {
+  if (enabled) return NotificationPermissionStatus.granted;
+  return hasRequestedPermission
+      ? NotificationPermissionStatus.denied
+      : NotificationPermissionStatus.notDetermined;
 }
 
 DateTimeComponents? notificationDateTimeComponents(RepeatRule repeatRule) {
@@ -63,10 +76,14 @@ Future<NotificationTimeZoneInitialization> initializeNotificationTimeZone({
 }
 
 class NotificationService implements NotificationPlatform {
-  NotificationService({FlutterLocalNotificationsPlugin? plugin})
-    : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+  NotificationService({
+    FlutterLocalNotificationsPlugin? plugin,
+    SharedPreferences? preferences,
+  }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
+       _preferences = preferences;
 
   final FlutterLocalNotificationsPlugin _plugin;
+  final SharedPreferences? _preferences;
 
   @override
   Future<void> initialize({
@@ -121,6 +138,11 @@ class NotificationService implements NotificationPlatform {
   @override
   Future<NotificationPermissionStatus> getPermissionStatus() async {
     if (kIsWeb) return NotificationPermissionStatus.granted;
+    final hasRequestedPermission =
+        (await _getPreferences()).getBool(
+          _notificationPermissionRequestedKey,
+        ) ??
+        false;
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         final enabled = await _plugin
@@ -131,9 +153,10 @@ class NotificationService implements NotificationPlatform {
         if (enabled == null) {
           return NotificationPermissionStatus.notDetermined;
         }
-        return enabled
-            ? NotificationPermissionStatus.granted
-            : NotificationPermissionStatus.denied;
+        return resolveNotificationPermissionStatus(
+          enabled: enabled,
+          hasRequestedPermission: hasRequestedPermission,
+        );
       case TargetPlatform.iOS:
         final options = await _plugin
             .resolvePlatformSpecificImplementation<
@@ -143,9 +166,10 @@ class NotificationService implements NotificationPlatform {
         if (options == null) {
           return NotificationPermissionStatus.notDetermined;
         }
-        return options.isEnabled
-            ? NotificationPermissionStatus.granted
-            : NotificationPermissionStatus.denied;
+        return resolveNotificationPermissionStatus(
+          enabled: options.isEnabled,
+          hasRequestedPermission: hasRequestedPermission,
+        );
       case TargetPlatform.macOS:
         final options = await _plugin
             .resolvePlatformSpecificImplementation<
@@ -155,9 +179,10 @@ class NotificationService implements NotificationPlatform {
         if (options == null) {
           return NotificationPermissionStatus.notDetermined;
         }
-        return options.isEnabled
-            ? NotificationPermissionStatus.granted
-            : NotificationPermissionStatus.denied;
+        return resolveNotificationPermissionStatus(
+          enabled: options.isEnabled,
+          hasRequestedPermission: hasRequestedPermission,
+        );
       case TargetPlatform.fuchsia:
       case TargetPlatform.linux:
       case TargetPlatform.windows:
@@ -192,6 +217,12 @@ class NotificationService implements NotificationPlatform {
       case TargetPlatform.linux:
       case TargetPlatform.windows:
         granted = true;
+    }
+    if (granted != null) {
+      await (await _getPreferences()).setBool(
+        _notificationPermissionRequestedKey,
+        true,
+      );
     }
     if (granted == null) return NotificationPermissionStatus.notDetermined;
     return granted
@@ -271,4 +302,7 @@ class NotificationService implements NotificationPlatform {
       payload: response.payload,
     );
   }
+
+  Future<SharedPreferences> _getPreferences() async =>
+      _preferences ?? await SharedPreferences.getInstance();
 }

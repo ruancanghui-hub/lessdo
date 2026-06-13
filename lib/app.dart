@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'controllers/app_controller.dart';
@@ -31,8 +33,9 @@ class _LessDoAppState extends State<LessDoApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused && widget.store.settings.faceId) {
       setState(() => _locked = true);
-    } else if (state == AppLifecycleState.resumed && _locked) {
-      _unlock();
+    } else if (state == AppLifecycleState.resumed) {
+      unawaited(widget.store.reconcileReminders());
+      if (_locked) _unlock();
     }
   }
 

@@ -41,6 +41,33 @@ void main() {
     expect(result.location.name, isNot('UTC'));
   });
 
+  test(
+    'permission status distinguishes first request from persisted denial',
+    () {
+      expect(
+        resolveNotificationPermissionStatus(
+          enabled: false,
+          hasRequestedPermission: false,
+        ),
+        NotificationPermissionStatus.notDetermined,
+      );
+      expect(
+        resolveNotificationPermissionStatus(
+          enabled: false,
+          hasRequestedPermission: true,
+        ),
+        NotificationPermissionStatus.denied,
+      );
+      expect(
+        resolveNotificationPermissionStatus(
+          enabled: true,
+          hasRequestedPermission: true,
+        ),
+        NotificationPermissionStatus.granted,
+      );
+    },
+  );
+
   test('monthly platform scheduling stays one-time to preserve anchor day', () {
     expect(
       notificationDateTimeComponents(RepeatRule.daily),
@@ -54,7 +81,125 @@ void main() {
   });
 
   test(
-    'permission denial returns status and retry can request again',
+    'monthly schedule preloads twelve stable one-time occurrences',
+    () async {
+      final location = tz.getLocation('Asia/Shanghai');
+      final platform = _FakeNotificationPlatform()
+        ..permissionStatus = NotificationPermissionStatus.granted;
+      final coordinator = _coordinator(
+        platform: platform,
+        location: location,
+        now: () => tz.TZDateTime(location, 2026, 1, 31, 19),
+      );
+      final task = _task(
+        'task-1',
+        reminderAt: tz.TZDateTime(location, 2026, 1, 31, 18, 45),
+        repeatRule: RepeatRule.monthly,
+      );
+
+      await coordinator.schedule(task);
+
+      expect(platform.scheduled, hasLength(12));
+      expect(
+        platform.scheduled.map((request) => request.id).toSet(),
+        hasLength(12),
+      );
+      expect(
+        platform.scheduled[0].scheduledDate,
+        tz.TZDateTime(location, 2026, 2, 28, 18, 45),
+      );
+      expect(
+        platform.scheduled[1].scheduledDate,
+        tz.TZDateTime(location, 2026, 3, 31, 18, 45),
+      );
+      expect(
+        platform.scheduled.every(
+          (request) => request.repeatRule == RepeatRule.none,
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'reconcile fills a missing monthly occurrence from the twelve month set',
+    () async {
+      final location = tz.getLocation('Asia/Shanghai');
+      final task = _task(
+        'task-1',
+        reminderAt: tz.TZDateTime(location, 2026, 1, 31, 18, 45),
+        repeatRule: RepeatRule.monthly,
+      );
+      final expected = monthlyTaskNotifications(
+        task: task,
+        now: tz.TZDateTime(location, 2026, 1, 31, 19),
+        location: location,
+      );
+      final platform = _FakeNotificationPlatform()
+        ..permissionStatus = NotificationPermissionStatus.granted
+        ..pending.addAll([
+          for (final request in expected.skip(1))
+            PendingNotification(id: request.id, payload: request.payload),
+        ]);
+      final coordinator = _coordinator(
+        platform: platform,
+        repository: _MemoryTaskRepository(tasks: [task]),
+        location: location,
+        now: () => tz.TZDateTime(location, 2026, 1, 31, 19),
+      );
+
+      await coordinator.reconcile();
+
+      expect(platform.scheduled, hasLength(1));
+      expect(platform.scheduled.single.id, expected.first.id);
+      expect(
+        platform.scheduled.single.scheduledDate,
+        tz.TZDateTime(location, 2026, 2, 28, 18, 45),
+      );
+    },
+  );
+
+  test(
+    'after the first monthly trigger the next month remains scheduled',
+    () async {
+      final location = tz.getLocation('Asia/Shanghai');
+      final task = _task(
+        'task-1',
+        reminderAt: tz.TZDateTime(location, 2026, 1, 31, 18, 45),
+        repeatRule: RepeatRule.monthly,
+      );
+      final initial = monthlyTaskNotifications(
+        task: task,
+        now: tz.TZDateTime(location, 2026, 1, 31, 19),
+        location: location,
+      );
+      final platform = _FakeNotificationPlatform()
+        ..permissionStatus = NotificationPermissionStatus.granted
+        ..pending.addAll([
+          for (final request in initial.skip(1))
+            PendingNotification(id: request.id, payload: request.payload),
+        ]);
+      final coordinator = _coordinator(
+        platform: platform,
+        repository: _MemoryTaskRepository(tasks: [task]),
+        location: location,
+        now: () => tz.TZDateTime(location, 2026, 2, 28, 19),
+      );
+
+      await coordinator.reconcile();
+
+      final march = initial[1];
+      expect(platform.pending.any((pending) => pending.id == march.id), isTrue);
+      expect(platform.scheduled, hasLength(1));
+      expect(
+        platform.scheduled.single.scheduledDate,
+        tz.TZDateTime(location, 2027, 2, 28, 18, 45),
+      );
+    },
+  );
+
+  test(
+    'permission is requested once only while status is not determined',
     () async {
       final platform = _FakeNotificationPlatform()
         ..permissionStatus = NotificationPermissionStatus.notDetermined
@@ -73,12 +218,35 @@ void main() {
 
       expect(
         await coordinator.schedule(task),
+        ReminderScheduleStatus.permissionDenied,
+      );
+      expect(platform.permissionRequests, 1);
+      expect(platform.scheduled, isEmpty);
+
+      expect(
+        await coordinator.requestPermission(),
+        NotificationPermissionStatus.granted,
+      );
+      expect(
+        await coordinator.schedule(task),
         ReminderScheduleStatus.scheduled,
       );
       expect(platform.permissionRequests, 2);
       expect(platform.scheduled.single.taskId, 'task-1');
     },
   );
+
+  test('denied permission never triggers an automatic request', () async {
+    final platform = _FakeNotificationPlatform()
+      ..permissionStatus = NotificationPermissionStatus.denied;
+    final coordinator = _coordinator(platform: platform);
+
+    expect(
+      await coordinator.schedule(_task('task-1')),
+      ReminderScheduleStatus.permissionDenied,
+    );
+    expect(platform.permissionRequests, 0);
+  });
 
   test(
     'reconcile cancels orphan and schedules missing without permission prompt',
@@ -128,6 +296,30 @@ void main() {
     expect(report.failedTaskIds, ['task-1']);
     expect(repository.tasks.single.reminderSchedulingFailed, isTrue);
   });
+
+  test(
+    'reconcile clears a persisted failure when every request is pending',
+    () async {
+      final task = _task('task-1').copyWith(reminderSchedulingFailed: true);
+      final repository = _MemoryTaskRepository(tasks: [task]);
+      final platform = _FakeNotificationPlatform()
+        ..permissionStatus = NotificationPermissionStatus.granted
+        ..pending.add(
+          PendingNotification(
+            id: taskNotificationId('task-1'),
+            payload: taskNotificationPayload('task-1'),
+          ),
+        );
+      final coordinator = _coordinator(
+        platform: platform,
+        repository: repository,
+      );
+
+      await coordinator.reconcile();
+
+      expect(repository.tasks.single.reminderSchedulingFailed, isFalse);
+    },
+  );
 
   test('cancel removes both the task reminder and its snooze', () async {
     final platform = _FakeNotificationPlatform();

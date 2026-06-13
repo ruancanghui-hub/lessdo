@@ -25,6 +25,35 @@ tz.TZDateTime? nextReminderOccurrence({
   };
 }
 
+List<tz.TZDateTime> reminderOccurrences({
+  required DateTime anchor,
+  required RepeatRule repeatRule,
+  required DateTime now,
+  required tz.Location location,
+  int monthlyCount = 12,
+}) {
+  final first = nextReminderOccurrence(
+    anchor: anchor,
+    repeatRule: repeatRule,
+    now: now,
+    location: location,
+  );
+  if (first == null) return const [];
+  if (repeatRule != RepeatRule.monthly) return [first];
+
+  final localAnchor = tz.TZDateTime.from(anchor, location);
+  return [
+    first,
+    for (var offset = 1; offset < monthlyCount; offset++)
+      _monthlyCandidate(
+        location,
+        first.year,
+        first.month + offset,
+        localAnchor,
+      ),
+  ];
+}
+
 int stableNotificationId(NotificationIdNamespace namespace, String value) {
   var hash = 0x811c9dc5;
   for (final byte in utf8.encode('${namespace.name}:$value')) {

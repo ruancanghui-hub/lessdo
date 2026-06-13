@@ -15,14 +15,13 @@ Future<void> main() async {
 
   final database = await AppDatabase.open();
   final repository = SqliteTaskRepository(database);
-  final settingsRepository = SettingsRepository(
-    await SharedPreferences.getInstance(),
-  );
+  final preferences = await SharedPreferences.getInstance();
+  final settingsRepository = SettingsRepository(preferences);
   final timeZone = await initializeNotificationTimeZone();
   if (timeZone.warning != null) {
     debugPrint('Notification timezone fallback: ${timeZone.warning!.cause}');
   }
-  final notificationPlatform = NotificationService();
+  final notificationPlatform = NotificationService(preferences: preferences);
   final notifications = NotificationCoordinator(
     platform: notificationPlatform,
     repository: repository,

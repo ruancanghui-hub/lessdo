@@ -96,8 +96,9 @@ class AppController extends ChangeNotifier {
   AppSettings _settings = const AppSettings();
   List<OperationWarning> _operationWarnings = const [];
   Future<void> _operationQueue = Future.value();
-  final StreamController<String> _navigationTaskIds =
+  final StreamController<String> _openTaskRequestController =
       StreamController<String>.broadcast();
+  String? _pendingOpenTaskId;
   late final StreamSubscription<NotificationAction> _notificationSubscription;
 
   List<TaskList> get lists => _lists;
@@ -114,7 +115,19 @@ class AppController extends ChangeNotifier {
 
   List<OperationWarning> get operationWarnings => _operationWarnings;
 
-  Stream<String> get navigationTaskIds => _navigationTaskIds.stream;
+  Stream<String> get openTaskRequests => Stream<String>.multi((controller) {
+    final pendingTaskId = _pendingOpenTaskId;
+    if (pendingTaskId != null) {
+      _pendingOpenTaskId = null;
+      controller.add(pendingTaskId);
+    }
+    final subscription = _openTaskRequestController.stream.listen(
+      controller.add,
+      onError: controller.addError,
+      onDone: controller.close,
+    );
+    controller.onCancel = subscription.cancel;
+  });
 
   void clearOperationWarnings() {
     if (_operationWarnings.isEmpty) return;
@@ -134,12 +147,7 @@ class AppController extends ChangeNotifier {
       _sessions = List.unmodifiable(values[1]! as List<FocusSession>);
       _activeFocus = values[2] as ActiveFocusSession?;
       _settings = values[3]! as AppSettings;
-      try {
-        final report = await _notifications.reconcile();
-        _applyReconcileReport(report);
-      } catch (_) {
-        _recordWarning('reconcileReminders', const []);
-      }
+      await reconcileReminders();
       notifyListeners();
       final launchAction = await _notifications.launchAction();
       if (launchAction != null) {
@@ -150,32 +158,46 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<void> handleNotificationAction(NotificationAction action) {
+  Future<void> handleNotificationAction(NotificationAction action) async {
     switch (action.type) {
       case NotificationActionType.open:
         if (_tasks.any((task) => task.id == action.taskId)) {
-          _navigationTaskIds.add(action.taskId);
+          if (_openTaskRequestController.hasListener) {
+            _openTaskRequestController.add(action.taskId);
+          } else {
+            _pendingOpenTaskId = action.taskId;
+          }
         }
-        return Future.value();
       case NotificationActionType.complete:
         final task = _taskOrNull(action.taskId);
-        if (task == null || task.completed) return Future.value();
-        return _enqueueMutation(() => _toggleTask(action.taskId));
+        if (task != null && !task.completed) {
+          await _enqueueMutation(() => _toggleTask(action.taskId));
+        }
       case NotificationActionType.snooze10:
         final task = _taskOrNull(action.taskId);
-        if (task == null || task.completed || task.reminderAt == null) {
-          return Future.value();
-        }
-        return _enqueueMutation(() async {
-          try {
-            final status = await _notifications.snooze(task);
-            if (status != ReminderScheduleStatus.scheduled) {
+        if (task != null && !task.completed && task.reminderAt != null) {
+          await _enqueueMutation(() async {
+            try {
+              final status = await _notifications.snooze(task);
+              if (status != ReminderScheduleStatus.scheduled) {
+                _recordWarning('snoozeReminder', [task.id]);
+              }
+            } catch (_) {
               _recordWarning('snoozeReminder', [task.id]);
             }
-          } catch (_) {
-            _recordWarning('snoozeReminder', [task.id]);
-          }
-        });
+          });
+        }
+    }
+    await reconcileReminders();
+  }
+
+  Future<void> reconcileReminders() async {
+    try {
+      final report = await _notifications.reconcile();
+      _applyReconcileReport(report);
+      notifyListeners();
+    } catch (_) {
+      _recordWarning('reconcileReminders', const []);
     }
   }
 
@@ -440,7 +462,11 @@ class AppController extends ChangeNotifier {
     final task = taskById(taskId);
     if (task.reminderAt == null || task.completed) return;
     try {
-      await _scheduleReminder(task);
+      final permission = await _notifications.requestPermission();
+      if (permission != NotificationPermissionStatus.granted) {
+        throw StateError('Notification permission denied.');
+      }
+      await _scheduleReminder(task, requestPermission: false);
     } catch (_) {
       _recordWarning('scheduleReminder', [task.id]);
       return;
@@ -550,8 +576,14 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _scheduleReminder(TaskItem task) async {
-    final status = await _notifications.schedule(task);
+  Future<void> _scheduleReminder(
+    TaskItem task, {
+    bool requestPermission = true,
+  }) async {
+    final status = await _notifications.schedule(
+      task,
+      requestPermission: requestPermission,
+    );
     if (status == ReminderScheduleStatus.permissionDenied) {
       throw StateError('Notification permission denied.');
     }
@@ -562,12 +594,15 @@ class AppController extends ChangeNotifier {
 
   void _applyReconcileReport(NotificationReconcileReport report) {
     final failedIds = report.failedTaskIds.toSet();
-    final scheduledIds = report.scheduledMissingTaskIds.toSet();
+    final recoveredIds = {
+      ...report.scheduledMissingTaskIds,
+      ...report.recoveredTaskIds,
+    };
     _tasks = List.unmodifiable([
       for (final task in _tasks)
         if (failedIds.contains(task.id))
           task.copyWith(reminderSchedulingFailed: true)
-        else if (scheduledIds.contains(task.id))
+        else if (recoveredIds.contains(task.id))
           task.copyWith(reminderSchedulingFailed: false)
         else
           task,
@@ -639,7 +674,7 @@ class AppController extends ChangeNotifier {
   @override
   void dispose() {
     unawaited(_notificationSubscription.cancel());
-    unawaited(_navigationTaskIds.close());
+    unawaited(_openTaskRequestController.close());
     super.dispose();
   }
 

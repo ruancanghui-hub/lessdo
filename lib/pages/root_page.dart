@@ -11,20 +11,29 @@ import 'focus_page.dart';
 import 'list_detail_page.dart';
 import 'lists_page.dart';
 import 'settings_page.dart';
+import 'task_editor_sheet.dart';
 import 'today_page.dart';
 
 class RootPage extends StatefulWidget {
-  const RootPage({super.key, required this.store});
+  RootPage({
+    super.key,
+    required this.store,
+    Future<Uri?> Function()? initialLink,
+    Stream<Uri>? linkStream,
+  }) : initialLink = initialLink ?? AppLinks().getInitialLink,
+       linkStream = linkStream ?? AppLinks().uriLinkStream;
 
   final AppController store;
+  final Future<Uri?> Function() initialLink;
+  final Stream<Uri> linkStream;
 
   @override
   State<RootPage> createState() => _RootPageState();
 }
 
 class _RootPageState extends State<RootPage> {
-  final _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
+  StreamSubscription<String>? _openTaskSubscription;
   String? _lastLink;
   var _index = 0;
   String? _focusTaskId;
@@ -33,16 +42,27 @@ class _RootPageState extends State<RootPage> {
   void initState() {
     super.initState();
     _listenForLinks();
+    _openTaskSubscription = widget.store.openTaskRequests.listen(
+      _handleOpenTaskRequest,
+    );
   }
 
   Future<void> _listenForLinks() async {
-    final initialLink = await _appLinks.getInitialLink();
+    final initialLink = await widget.initialLink();
     if (initialLink != null) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _handleLink(initialLink),
       );
     }
-    _linkSubscription = _appLinks.uriLinkStream.listen(_handleLink);
+    _linkSubscription = widget.linkStream.listen(_handleLink);
+  }
+
+  Future<void> _handleOpenTaskRequest(String taskId) async {
+    if (!mounted || !widget.store.tasks.any((task) => task.id == taskId)) {
+      return;
+    }
+    _setIndex(0);
+    await showTaskEditor(context, store: widget.store, taskId: taskId);
   }
 
   Future<void> _handleLink(Uri uri) async {
@@ -107,6 +127,7 @@ class _RootPageState extends State<RootPage> {
   @override
   void dispose() {
     _linkSubscription?.cancel();
+    _openTaskSubscription?.cancel();
     super.dispose();
   }
 
