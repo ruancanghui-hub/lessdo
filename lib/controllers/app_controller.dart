@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -88,6 +90,7 @@ class AppController extends ChangeNotifier {
   ActiveFocusSession? _activeFocus;
   AppSettings _settings = const AppSettings();
   List<OperationWarning> _operationWarnings = const [];
+  Future<void> _operationQueue = Future.value();
 
   List<TaskList> get lists => _lists;
 
@@ -102,6 +105,12 @@ class AppController extends ChangeNotifier {
   AppSettings get settings => _settings;
 
   List<OperationWarning> get operationWarnings => _operationWarnings;
+
+  void clearOperationWarnings() {
+    if (_operationWarnings.isEmpty) return;
+    _operationWarnings = const [];
+    notifyListeners();
+  }
 
   Future<void> load() async {
     try {
@@ -147,6 +156,24 @@ class AppController extends ChangeNotifier {
     String listId = 'inbox',
     DateTime? dueAt,
     DateTime? reminderAt,
+  }) {
+    return _enqueueMutation(
+      () => _addTask(
+        title: title,
+        text: text,
+        listId: listId,
+        dueAt: dueAt,
+        reminderAt: reminderAt,
+      ),
+    );
+  }
+
+  Future<TaskItem> _addTask({
+    String? title,
+    String? text,
+    required String listId,
+    DateTime? dueAt,
+    DateTime? reminderAt,
   }) async {
     final input = title ?? text;
     if (input == null) {
@@ -168,14 +195,15 @@ class AppController extends ChangeNotifier {
     return _saveTaskAndSync(task);
   }
 
-  Future<void> saveTask(TaskItem task) async {
-    await _saveTaskAndSync(task);
-  }
+  Future<void> saveTask(TaskItem task) =>
+      _enqueueMutation(() => _saveTaskAndSync(task));
 
-  Future<void> toggleTask(String id) async {
+  Future<void> toggleTask(String id) => _enqueueMutation(() => _toggleTask(id));
+
+  Future<void> _toggleTask(String id) async {
     final task = taskById(id);
     final now = _now();
-    await saveTask(
+    await _saveTaskAndSync(
       task.copyWith(
         completed: !task.completed,
         completedAt: task.completed ? null : now,
@@ -185,7 +213,9 @@ class AppController extends ChangeNotifier {
     );
   }
 
-  Future<void> deleteTask(String id) async {
+  Future<void> deleteTask(String id) => _enqueueMutation(() => _deleteTask(id));
+
+  Future<void> _deleteTask(String id) async {
     await _write('deleteTask', () => _repository.deleteTask(id));
     _tasks = List.unmodifiable(_tasks.where((task) => task.id != id));
     notifyListeners();
@@ -193,6 +223,16 @@ class AppController extends ChangeNotifier {
   }
 
   Future<TaskList> addList({
+    required String name,
+    required int colorValue,
+    required ListKind kind,
+  }) {
+    return _enqueueMutation(
+      () => _addList(name: name, colorValue: colorValue, kind: kind),
+    );
+  }
+
+  Future<TaskList> _addList({
     required String name,
     required int colorValue,
     required ListKind kind,
@@ -210,7 +250,10 @@ class AppController extends ChangeNotifier {
     return list;
   }
 
-  Future<void> updateList(TaskList list) async {
+  Future<void> updateList(TaskList list) =>
+      _enqueueMutation(() => _updateList(list));
+
+  Future<void> _updateList(TaskList list) async {
     await _write('saveList', () => _repository.saveList(list));
     final replaced = [
       for (final item in _lists)
@@ -223,7 +266,10 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> deleteList(String listId, ListDeletionStrategy strategy) async {
+  Future<void> deleteList(String listId, ListDeletionStrategy strategy) =>
+      _enqueueMutation(() => _deleteList(listId, strategy));
+
+  Future<void> _deleteList(String listId, ListDeletionStrategy strategy) async {
     final deletedTaskIds = strategy == ListDeletionStrategy.deleteTasks
         ? _tasks
               .where((task) => task.listId == listId)
@@ -266,13 +312,22 @@ class AppController extends ChangeNotifier {
     );
   }
 
-  Future<void> saveActiveFocus(ActiveFocusSession? session) async {
+  Future<void> saveActiveFocus(ActiveFocusSession? session) =>
+      _enqueueMutation(() => _saveActiveFocus(session));
+
+  Future<void> _saveActiveFocus(ActiveFocusSession? session) async {
     await _write('saveActiveFocus', () => _repository.saveActiveFocus(session));
     _activeFocus = session;
     notifyListeners();
   }
 
-  Future<void> completeFocus(
+  Future<void> completeFocus(FocusSession history, {String? completedTaskId}) {
+    return _enqueueMutation(
+      () => _completeFocus(history, completedTaskId: completedTaskId),
+    );
+  }
+
+  Future<void> _completeFocus(
     FocusSession history, {
     String? completedTaskId,
   }) async {
@@ -306,8 +361,8 @@ class AppController extends ChangeNotifier {
     required String title,
     required FocusMode mode,
     required int durationSeconds,
-  }) {
-    return completeFocus(
+  }) => _enqueueMutation(
+    () => _completeFocus(
       FocusSession(
         id: _idFactory(),
         taskTitle: title,
@@ -316,14 +371,17 @@ class AppController extends ChangeNotifier {
         durationSeconds: durationSeconds,
         completedAt: _now(),
       ),
-    );
-  }
+    ),
+  );
 
-  Future<void> retryReminder(String taskId) async {
+  Future<void> retryReminder(String taskId) =>
+      _enqueueMutation(() => _retryReminder(taskId));
+
+  Future<void> _retryReminder(String taskId) async {
     final task = taskById(taskId);
     if (task.reminderAt == null || task.completed) return;
     try {
-      await _notifications.schedule(task);
+      await _scheduleReminder(task);
     } catch (_) {
       _recordWarning('scheduleReminder', [task.id]);
       return;
@@ -347,7 +405,7 @@ class AppController extends ChangeNotifier {
     }
 
     try {
-      await _notifications.schedule(task);
+      await _scheduleReminder(task);
     } catch (_) {
       final failedTask = task.copyWith(reminderSchedulingFailed: true);
       await _persistReminderState(
@@ -416,11 +474,37 @@ class AppController extends ChangeNotifier {
   }
 
   void _recordWarning(String operation, Iterable<String> failedTaskIds) {
-    _operationWarnings = List.unmodifiable([
+    final normalizedIds = failedTaskIds.toSet().toList()..sort();
+    final duplicate = _operationWarnings.any(
+      (warning) =>
+          warning.operation == operation &&
+          listEquals(warning.failedTaskIds, normalizedIds),
+    );
+    if (duplicate) return;
+    final warnings = [
       ..._operationWarnings,
-      OperationWarning(operation: operation, failedTaskIds: failedTaskIds),
-    ]);
+      OperationWarning(operation: operation, failedTaskIds: normalizedIds),
+    ];
+    _operationWarnings = List.unmodifiable(
+      warnings.length > 50 ? warnings.sublist(warnings.length - 50) : warnings,
+    );
     notifyListeners();
+  }
+
+  Future<void> _scheduleReminder(TaskItem task) async {
+    if (!await _notifications.requestPermission()) {
+      throw StateError('Notification permission denied.');
+    }
+    await _notifications.schedule(task);
+  }
+
+  Future<T> _enqueueMutation<T>(Future<T> Function() operation) {
+    final result = _operationQueue.then((_) => operation());
+    _operationQueue = result.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {},
+    );
+    return result;
   }
 
   void _publishSnapshot(RepositorySnapshot snapshot) {

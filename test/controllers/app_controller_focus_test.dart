@@ -41,5 +41,8 @@ class _FakeNotificationCoordinator implements NotificationCoordinator {
   Future<void> cancel(String taskId) async {}
 
   @override
+  Future<bool> requestPermission() async => true;
+
+  @override
   Future<void> schedule(TaskItem task) async {}
 }

@@ -6,6 +6,8 @@ import '../models/task_item.dart';
 import 'notification_service.dart';
 
 abstract interface class NotificationCoordinator {
+  Future<bool> requestPermission();
+
   Future<void> schedule(TaskItem task);
 
   Future<void> cancel(String taskId);
@@ -25,13 +27,13 @@ class NotificationServiceCoordinator implements NotificationCoordinator {
   final NotificationService _service;
 
   @override
+  Future<bool> requestPermission() => _service.requestPermission();
+
+  @override
   Future<void> cancel(String taskId) => _service.cancel(taskId);
 
   @override
-  Future<void> schedule(TaskItem task) async {
-    await _service.requestPermission();
-    await _service.schedule(task);
-  }
+  Future<void> schedule(TaskItem task) => _service.schedule(task);
 }
 
 class LocalAuthenticationCoordinator implements AuthenticationCoordinator {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lessdo/controllers/app_controller.dart';
 import 'package:lessdo/data/settings_repository.dart';
@@ -86,6 +88,37 @@ void main() {
       expect(controller.tasks.single.reminderSchedulingFailed, isFalse);
       expect(repository.tasks.single.reminderSchedulingFailed, isFalse);
       expect(notifications.scheduledTaskIds, ['task-1', 'task-1']);
+    },
+  );
+
+  test(
+    'permission denial marks reminder failed without scheduling and retry asks again',
+    () async {
+      final repository = _MemoryTaskRepository();
+      final notifications = _FakeNotificationCoordinator()
+        ..permissionGranted = false;
+      final controller = await _controller(
+        repository: repository,
+        notifications: notifications,
+      );
+
+      final task = await controller.addTask(
+        title: 'Pay bill',
+        reminderAt: DateTime.utc(2026, 1, 2),
+      );
+
+      expect(notifications.permissionRequests, 1);
+      expect(notifications.scheduledTaskIds, isEmpty);
+      expect(task.reminderSchedulingFailed, isTrue);
+      expect(repository.tasks.single.reminderSchedulingFailed, isTrue);
+      expect(controller.operationWarnings.single.operation, 'scheduleReminder');
+
+      notifications.permissionGranted = true;
+      await controller.retryReminder(task.id);
+
+      expect(notifications.permissionRequests, 2);
+      expect(notifications.scheduledTaskIds, ['task-1']);
+      expect(controller.tasks.single.reminderSchedulingFailed, isFalse);
     },
   );
 
@@ -215,6 +248,107 @@ void main() {
       expect(controller.operationWarnings.single.failedTaskIds, ['task-1']);
     },
   );
+
+  test(
+    'task and list mutations serialize without orphaning reminders',
+    () async {
+      final saveStarted = Completer<void>();
+      final allowSave = Completer<void>();
+      final repository = _BlockingSaveTaskRepository(
+        saveStarted: saveStarted,
+        allowSave: allowSave,
+        lists: const [
+          TaskList(id: 'inbox', name: 'Inbox', colorValue: 0),
+          TaskList(id: 'work', name: 'Work', colorValue: 1, sortOrder: 1),
+        ],
+      );
+      final notifications = _FakeNotificationCoordinator();
+      final controller = await _controller(
+        repository: repository,
+        notifications: notifications,
+      );
+
+      final addFuture = controller.addTask(
+        title: 'Queued task',
+        listId: 'work',
+        reminderAt: DateTime.utc(2026, 1, 2),
+      );
+      await saveStarted.future;
+      final deleteFuture = controller.deleteList(
+        'work',
+        ListDeletionStrategy.deleteTasks,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(repository.deleteListCalls, 0);
+
+      allowSave.complete();
+      final added = await addFuture;
+      await deleteFuture;
+
+      expect(added.id, 'task-1');
+      expect(repository.tasks, isEmpty);
+      expect(controller.tasks, isEmpty);
+      expect(controller.lists.map((list) => list.id), ['inbox']);
+      expect(notifications.scheduledTaskIds, ['task-1']);
+      expect(notifications.cancelledTaskIds, ['task-1']);
+    },
+  );
+
+  test('failed mutation does not poison the operation queue', () async {
+    final repository = _FailFirstSaveTaskRepository();
+    final controller = await _controller(
+      repository: repository,
+      notifications: _FakeNotificationCoordinator(),
+    );
+
+    final first = controller.addTask(title: 'Fails');
+    final second = controller.addTask(title: 'Succeeds');
+
+    await expectLater(first, throwsA(isA<RepositoryWriteException>()));
+    final saved = await second;
+
+    expect(saved.title, 'Succeeds');
+    expect(controller.tasks.single.title, 'Succeeds');
+  });
+
+  test('warnings deduplicate and can be acknowledged', () async {
+    final repository = _MemoryTaskRepository(tasks: [_task('task-1')]);
+    final notifications = _FakeNotificationCoordinator()
+      ..permissionGranted = false;
+    final controller = await _controller(
+      repository: repository,
+      notifications: notifications,
+    );
+
+    await controller.retryReminder('task-1');
+    await controller.retryReminder('task-1');
+
+    expect(controller.operationWarnings, hasLength(1));
+    expect(controller.operationWarnings.single.failedTaskIds, ['task-1']);
+
+    controller.clearOperationWarnings();
+
+    expect(controller.operationWarnings, isEmpty);
+  });
+
+  test('warnings retain only the most recent fifty entries', () async {
+    final tasks = [
+      for (var index = 0; index < 55; index++) _task('task-$index'),
+    ];
+    final controller = await _controller(
+      repository: _MemoryTaskRepository(tasks: tasks),
+      notifications: _FakeNotificationCoordinator()..permissionGranted = false,
+    );
+
+    for (final task in tasks) {
+      await controller.retryReminder(task.id);
+    }
+
+    expect(controller.operationWarnings, hasLength(50));
+    expect(controller.operationWarnings.first.failedTaskIds, ['task-5']);
+    expect(controller.operationWarnings.last.failedTaskIds, ['task-54']);
+  });
 }
 
 class _ThrowingTaskRepository extends _MemoryTaskRepository {
@@ -232,6 +366,45 @@ class _FailSecondSaveTaskRepository extends _MemoryTaskRepository {
     saveCalls += 1;
     if (saveCalls == 2) throw StateError('status write failed');
     await super.saveTask(task);
+  }
+}
+
+class _FailFirstSaveTaskRepository extends _MemoryTaskRepository {
+  var saveCalls = 0;
+
+  @override
+  Future<void> saveTask(TaskItem task) async {
+    saveCalls += 1;
+    if (saveCalls == 1) throw StateError('first write failed');
+    await super.saveTask(task);
+  }
+}
+
+class _BlockingSaveTaskRepository extends _MemoryTaskRepository {
+  _BlockingSaveTaskRepository({
+    required this.saveStarted,
+    required this.allowSave,
+    super.lists,
+  });
+
+  final Completer<void> saveStarted;
+  final Completer<void> allowSave;
+  var deleteListCalls = 0;
+
+  @override
+  Future<void> saveTask(TaskItem task) async {
+    if (!saveStarted.isCompleted) saveStarted.complete();
+    await allowSave.future;
+    await super.saveTask(task);
+  }
+
+  @override
+  Future<RepositorySnapshot> deleteList(
+    String listId,
+    ListDeletionStrategy strategy,
+  ) async {
+    deleteListCalls += 1;
+    return super.deleteList(listId, strategy);
   }
 }
 
@@ -340,6 +513,8 @@ class _MemoryTaskRepository implements TaskRepository {
 
 class _FakeNotificationCoordinator implements NotificationCoordinator {
   bool failSchedule = false;
+  bool permissionGranted = true;
+  int permissionRequests = 0;
   final Set<String> failedCancellationIds = {};
   final List<String> scheduledTaskIds = [];
   final List<String> cancelledTaskIds = [];
@@ -350,6 +525,12 @@ class _FakeNotificationCoordinator implements NotificationCoordinator {
     if (failedCancellationIds.contains(taskId)) {
       throw StateError('cancel failed');
     }
+  }
+
+  @override
+  Future<bool> requestPermission() async {
+    permissionRequests += 1;
+    return permissionGranted;
   }
 
   @override
