@@ -118,7 +118,7 @@ class SmartTaskParser {
   ({int hour, int minute}) _chineseClock(RegExpMatch match) {
     var hour = int.parse(match.group(2)!);
     final period = match.group(1);
-    if ((period == '下午' || period == '晚上') && hour < 12) {
+    if ((period == '中午' || period == '下午' || period == '晚上') && hour < 12) {
       hour += 12;
     } else if (period == '凌晨' && hour == 12) {
       hour = 0;

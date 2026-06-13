@@ -25,6 +25,17 @@ void main() {
     expect(result.reminderAt, result.dueAt);
   });
 
+  test('normalizes Chinese noon and midnight periods', () {
+    final earlyNoon = parser.parse('明天中午1点吃饭');
+    final noon = parser.parse('明天中午12点吃饭');
+    final midnight = parser.parse('明天凌晨12点睡觉');
+
+    expect(earlyNoon.title, '吃饭');
+    expect(earlyNoon.dueAt, DateTime(2026, 6, 14, 13));
+    expect(noon.dueAt, DateTime(2026, 6, 14, 12));
+    expect(midnight.dueAt, DateTime(2026, 6, 14));
+  });
+
   test('does not treat an unmarked number as a time', () {
     final result = parser.parse('Buy 12 apples');
 
