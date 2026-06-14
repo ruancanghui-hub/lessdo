@@ -37,33 +37,38 @@ class TodayPage extends StatelessWidget {
     return Column(
       children: [
         LessDoTopBar(title: l10n.today, onLeading: onOpenLists),
-        SizedBox(
-          height: 67,
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 67),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 9),
+            padding: const EdgeInsets.fromLTRB(22, 8, 22, 12),
             child: Row(
               children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      DateFormat.yMMMEd(
-                        Localizations.localeOf(context).toLanguageTag(),
-                      ).format(DateTime.now()),
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      l10n.thingsLeft(openCount),
-                      style: const TextStyle(
-                        color: Color(0xFF9699A1),
-                        fontSize: 12,
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        DateFormat.yMMMEd(
+                          Localizations.localeOf(context).toLanguageTag(),
+                        ).format(DateTime.now()),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.thingsLeft(openCount),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF9699A1),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const Spacer(),
                 const SizedBox(
                   width: 42,
                   height: 42,
@@ -230,8 +235,8 @@ class _FocusEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: SizedBox(
-        height: 68,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 68),
         child: Row(
           children: [
             Container(
@@ -250,16 +255,20 @@ class _FocusEntry extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
                   SizedBox(height: 3),
                   Text(
                     subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: Color(0xFF7D7F87), fontSize: 12),
                   ),
                 ],

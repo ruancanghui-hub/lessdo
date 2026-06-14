@@ -8,12 +8,16 @@ class LessDoTopBar extends StatelessWidget {
     this.onLeading,
     this.leadingIcon = CupertinoIcons.list_bullet,
     this.onAdd,
+    this.onMore,
+    this.moreKey,
   });
 
   final String title;
   final VoidCallback? onLeading;
   final IconData leadingIcon;
   final VoidCallback? onAdd;
+  final VoidCallback? onMore;
+  final Key? moreKey;
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +42,12 @@ class LessDoTopBar extends StatelessWidget {
             ),
             if (onAdd != null)
               _TopButton(icon: CupertinoIcons.add, onPressed: onAdd)
+            else if (onMore != null)
+              _TopButton(
+                key: moreKey,
+                icon: CupertinoIcons.ellipsis,
+                onPressed: onMore,
+              )
             else
               const SizedBox(
                 width: 42,
@@ -52,7 +62,7 @@ class LessDoTopBar extends StatelessWidget {
 }
 
 class _TopButton extends StatelessWidget {
-  const _TopButton({required this.icon, this.onPressed});
+  const _TopButton({super.key, required this.icon, this.onPressed});
 
   final IconData icon;
   final VoidCallback? onPressed;

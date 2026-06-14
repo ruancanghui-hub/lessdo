@@ -88,6 +88,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeBlush => 'Blush';
 
   @override
+  String get editList => 'Edit List';
+
+  @override
+  String get deleteList => 'Delete List';
+
+  @override
+  String get deleteListQuestion =>
+      'What should happen to the tasks in this list?';
+
+  @override
+  String get moveTasksToInbox => 'Move Tasks to Inbox';
+
+  @override
+  String get deleteTasks => 'Delete Tasks';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
   String get welcomeTitle => 'Welcome to LessDo';
 
   @override

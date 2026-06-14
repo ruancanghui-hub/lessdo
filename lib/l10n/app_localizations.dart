@@ -254,6 +254,42 @@ abstract class AppLocalizations {
   /// **'Blush'**
   String get themeBlush;
 
+  /// No description provided for @editList.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit List'**
+  String get editList;
+
+  /// No description provided for @deleteList.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete List'**
+  String get deleteList;
+
+  /// No description provided for @deleteListQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'What should happen to the tasks in this list?'**
+  String get deleteListQuestion;
+
+  /// No description provided for @moveTasksToInbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Move Tasks to Inbox'**
+  String get moveTasksToInbox;
+
+  /// No description provided for @deleteTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Tasks'**
+  String get deleteTasks;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
   /// No description provided for @welcomeTitle.
   ///
   /// In en, this message translates to:

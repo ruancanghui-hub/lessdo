@@ -7,27 +7,29 @@ import '../controllers/app_controller.dart';
 Future<void> showNewListSheet(
   BuildContext context, {
   required AppController store,
+  TaskList? existing,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _NewListSheet(store: store),
+    builder: (_) => _NewListSheet(store: store, existing: existing),
   );
 }
 
 class _NewListSheet extends StatefulWidget {
-  const _NewListSheet({required this.store});
+  const _NewListSheet({required this.store, this.existing});
 
   final AppController store;
+  final TaskList? existing;
 
   @override
   State<_NewListSheet> createState() => _NewListSheetState();
 }
 
 class _NewListSheetState extends State<_NewListSheet> {
-  final _controller = TextEditingController();
+  late final TextEditingController _controller;
   var _kind = ListKind.standard;
   var _color = 0xFF2E7BF6;
 
@@ -38,6 +40,15 @@ class _NewListSheetState extends State<_NewListSheet> {
     0xFF9B51E0,
     0xFFF0A500,
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    _controller = TextEditingController(text: existing?.name);
+    _kind = existing?.kind ?? ListKind.standard;
+    _color = existing?.colorValue ?? 0xFF2E7BF6;
+  }
 
   @override
   void dispose() {
@@ -78,9 +89,9 @@ class _NewListSheetState extends State<_NewListSheet> {
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Cancel'),
                 ),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'New list',
+                    widget.existing == null ? 'New list' : 'Edit list',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
@@ -89,15 +100,26 @@ class _NewListSheetState extends State<_NewListSheet> {
                   onPressed: _controller.text.trim().isEmpty
                       ? null
                       : () async {
-                          await widget.store.addList(
-                            name: _controller.text.trim(),
-                            colorValue: _color,
-                            kind: _kind,
-                          );
+                          final existing = widget.existing;
+                          if (existing == null) {
+                            await widget.store.addList(
+                              name: _controller.text.trim(),
+                              colorValue: _color,
+                              kind: _kind,
+                            );
+                          } else {
+                            await widget.store.updateList(
+                              existing.copyWith(
+                                name: _controller.text.trim(),
+                                colorValue: _color,
+                                kind: _kind,
+                              ),
+                            );
+                          }
                           if (context.mounted) Navigator.of(context).pop();
                         },
-                  child: const Text(
-                    'Create',
+                  child: Text(
+                    widget.existing == null ? 'Create' : 'Save',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),

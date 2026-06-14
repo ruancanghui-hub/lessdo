@@ -87,6 +87,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get themeBlush => '浅绯';
 
   @override
+  String get editList => '编辑清单';
+
+  @override
+  String get deleteList => '删除清单';
+
+  @override
+  String get deleteListQuestion => '这个清单中的任务要如何处理？';
+
+  @override
+  String get moveTasksToInbox => '移到收件箱';
+
+  @override
+  String get deleteTasks => '同时删除任务';
+
+  @override
+  String get cancel => '取消';
+
+  @override
   String get welcomeTitle => '欢迎使用 LessDo';
 
   @override

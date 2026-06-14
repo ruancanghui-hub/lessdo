@@ -1,11 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import '../models/task_list.dart';
 import '../controllers/app_controller.dart';
+import '../data/task_repository.dart';
+import '../l10n/app_localizations.dart';
+import '../models/task_list.dart';
 import '../widgets/lessdo_top_bar.dart';
 import '../widgets/quick_add.dart';
 import '../widgets/task_row.dart';
+import 'new_list_sheet.dart';
 import 'task_editor_sheet.dart';
 
 class ListDetailPage extends StatelessWidget {
@@ -33,6 +36,10 @@ class ListDetailPage extends StatelessWidget {
                   title: list.name,
                   leadingIcon: CupertinoIcons.chevron_left,
                   onLeading: () => Navigator.of(context).pop(),
+                  moreKey: const Key('list-menu'),
+                  onMore: list.id == 'inbox'
+                      ? null
+                      : () => _showListActions(context, list),
                 ),
                 _ListHeader(
                   list: list,
@@ -97,7 +104,82 @@ class ListDetailPage extends StatelessWidget {
       },
     );
   }
+
+  Future<void> _showListActions(BuildContext context, TaskList list) async {
+    final l10n = AppLocalizations.of(context);
+    final action = await showModalBottomSheet<_ListAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(CupertinoIcons.pencil),
+              title: Text(l10n.editList),
+              onTap: () => Navigator.of(sheetContext).pop(_ListAction.edit),
+            ),
+            ListTile(
+              leading: Icon(
+                CupertinoIcons.trash,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
+                l10n.deleteList,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              onTap: () => Navigator.of(sheetContext).pop(_ListAction.delete),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted || action == null) return;
+    if (action == _ListAction.edit) {
+      await showNewListSheet(context, store: store, existing: list);
+      return;
+    }
+    await _confirmDelete(context, list);
+  }
+
+  Future<void> _confirmDelete(BuildContext context, TaskList list) async {
+    final l10n = AppLocalizations.of(context);
+    final strategy = await showDialog<ListDeletionStrategy>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.deleteList),
+        content: Text(l10n.deleteListQuestion),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(
+              dialogContext,
+            ).pop(ListDeletionStrategy.moveToInbox),
+            child: Text(l10n.moveTasksToInbox),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(
+              dialogContext,
+            ).pop(ListDeletionStrategy.deleteTasks),
+            child: Text(
+              l10n.deleteTasks,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (strategy == null || !context.mounted) return;
+    await store.deleteList(list.id, strategy);
+    if (context.mounted) Navigator.of(context).pop();
+  }
 }
+
+enum _ListAction { edit, delete }
 
 class _ListHeader extends StatelessWidget {
   const _ListHeader({

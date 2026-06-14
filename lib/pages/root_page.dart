@@ -158,37 +158,93 @@ class _RootPageState extends State<RootPage> {
       SettingsPage(store: widget.store),
     ];
 
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: IndexedStack(index: _index, children: pages),
+    final destinations = [
+      (
+        icon: CupertinoIcons.house,
+        selectedIcon: CupertinoIcons.house_fill,
+        label: l10n.today,
       ),
-      bottomNavigationBar: NavigationBar(
-        height: 67,
-        selectedIndex: _index,
-        onDestinationSelected: _setIndex,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(CupertinoIcons.house),
-            selectedIcon: const Icon(CupertinoIcons.house_fill),
-            label: l10n.today,
+      (
+        icon: CupertinoIcons.list_bullet,
+        selectedIcon: CupertinoIcons.list_bullet,
+        label: l10n.lists,
+      ),
+      (
+        icon: CupertinoIcons.timer,
+        selectedIcon: CupertinoIcons.timer_fill,
+        label: l10n.focus,
+      ),
+      (
+        icon: CupertinoIcons.gear,
+        selectedIcon: CupertinoIcons.gear_solid,
+        label: l10n.settings,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth > 800;
+        final content = _PageViewport(
+          child: IndexedStack(index: _index, children: pages),
+        );
+        return Scaffold(
+          body: SafeArea(
+            bottom: false,
+            child: wide
+                ? Row(
+                    children: [
+                      NavigationRail(
+                        selectedIndex: _index,
+                        onDestinationSelected: _setIndex,
+                        labelType: NavigationRailLabelType.all,
+                        destinations: [
+                          for (final destination in destinations)
+                            NavigationRailDestination(
+                              icon: Icon(destination.icon),
+                              selectedIcon: Icon(destination.selectedIcon),
+                              label: Text(destination.label),
+                            ),
+                        ],
+                      ),
+                      const VerticalDivider(width: 1),
+                      Expanded(child: content),
+                    ],
+                  )
+                : content,
           ),
-          NavigationDestination(
-            icon: const Icon(CupertinoIcons.list_bullet),
-            label: l10n.lists,
-          ),
-          NavigationDestination(
-            icon: const Icon(CupertinoIcons.timer),
-            selectedIcon: const Icon(CupertinoIcons.timer_fill),
-            label: l10n.focus,
-          ),
-          NavigationDestination(
-            icon: const Icon(CupertinoIcons.gear),
-            selectedIcon: const Icon(CupertinoIcons.gear_solid),
-            label: l10n.settings,
-          ),
-        ],
+          bottomNavigationBar: wide
+              ? null
+              : NavigationBar(
+                  height: 67,
+                  selectedIndex: _index,
+                  onDestinationSelected: _setIndex,
+                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                  destinations: [
+                    for (final destination in destinations)
+                      NavigationDestination(
+                        icon: Icon(destination.icon),
+                        selectedIcon: Icon(destination.selectedIcon),
+                        label: destination.label,
+                      ),
+                  ],
+                ),
+        );
+      },
+    );
+  }
+}
+
+class _PageViewport extends StatelessWidget {
+  const _PageViewport({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: SizedBox.expand(child: child),
       ),
     );
   }

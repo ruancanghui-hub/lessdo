@@ -49,13 +49,13 @@ class _QuickAddState extends State<QuickAdd> {
   Widget build(BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
     return Container(
-      height: 108,
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
       color: Theme.of(context).scaffoldBackgroundColor,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            height: 60,
+            constraints: const BoxConstraints(minHeight: 60),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.74),
               border: Border.all(color: accent, width: 1.5),
@@ -69,6 +69,7 @@ class _QuickAddState extends State<QuickAdd> {
                 ),
                 Expanded(
                   child: TextField(
+                    key: const Key('quick-add-field'),
                     controller: _controller,
                     enabled: !_submitting,
                     onChanged: (_) => setState(() {}),
@@ -86,6 +87,7 @@ class _QuickAddState extends State<QuickAdd> {
                 ),
                 if (_controller.text.isNotEmpty)
                   TextButton(
+                    key: const Key('quick-add-submit'),
                     onPressed: _submitting ? null : _submit,
                     child: const Text(
                       'Add',
@@ -121,6 +123,9 @@ class _QuickAddState extends State<QuickAdd> {
                   ),
                 ],
               ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 11, color: Color(0xFF999CA4)),
             ),
         ],
