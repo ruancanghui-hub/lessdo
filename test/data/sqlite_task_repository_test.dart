@@ -166,6 +166,10 @@ void main() {
       const TaskList(id: 'work', name: 'Work', colorValue: 1, sortOrder: 1),
     );
     await repository.saveTask(_task('task-1', listId: 'work'));
+    await repository.notificationIdFor(
+      taskId: 'task-1',
+      occurrenceKey: 'daily',
+    );
 
     final snapshot = await repository.deleteList(
       'work',
@@ -174,6 +178,13 @@ void main() {
 
     expect(snapshot.tasks.single.listId, 'inbox');
     expect(snapshot.lists.map((list) => list.id), ['inbox']);
+    expect(
+      await database.rawQuery(
+        'SELECT notification_id FROM notification_ids WHERE task_id = ?',
+        ['task-1'],
+      ),
+      hasLength(1),
+    );
   });
 
   test('deleting a list can atomically delete its tasks', () async {
@@ -181,6 +192,10 @@ void main() {
       const TaskList(id: 'work', name: 'Work', colorValue: 1, sortOrder: 1),
     );
     await repository.saveTask(_task('task-1', listId: 'work'));
+    await repository.notificationIdFor(
+      taskId: 'task-1',
+      occurrenceKey: 'daily',
+    );
 
     final snapshot = await repository.deleteList(
       'work',
@@ -189,6 +204,13 @@ void main() {
 
     expect(snapshot.tasks, isEmpty);
     expect(snapshot.lists.map((list) => list.id), ['inbox']);
+    expect(
+      await database.rawQuery(
+        'SELECT notification_id FROM notification_ids WHERE task_id = ?',
+        ['task-1'],
+      ),
+      isEmpty,
+    );
   });
 
   test('concurrent writes load in explicit deterministic order', () async {

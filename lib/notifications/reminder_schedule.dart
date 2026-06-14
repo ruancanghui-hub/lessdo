@@ -68,20 +68,15 @@ List<tz.TZDateTime> reminderOccurrences({
   );
   if (first == null) return const [];
   if (repeatRule != RepeatRule.monthly) return [first];
-
   final localAnchor = tz.TZDateTime.from(anchor, location);
-  return [
-    first,
-    for (var offset = 1; offset < monthlyCount; offset++)
-      _monthlyCandidate(
-        location,
-        first.year,
-        first.month + offset,
-        anchorDay: localAnchor.day,
-        hour: localAnchor.hour,
-        minute: localAnchor.minute,
-      ),
-  ];
+  return _monthlyOccurrences(
+    location: location,
+    first: first,
+    count: monthlyCount,
+    anchorDay: localAnchor.day,
+    hour: localAnchor.hour,
+    minute: localAnchor.minute,
+  );
 }
 
 List<tz.TZDateTime> reminderOccurrencesForAnchor({
@@ -99,17 +94,14 @@ List<tz.TZDateTime> reminderOccurrencesForAnchor({
   );
   if (first == null) return const [];
   if (repeatRule != RepeatRule.monthly) return [first];
-  return [
-    for (var offset = 0; offset < monthlyCount; offset++)
-      _monthlyCandidate(
-        location,
-        first.year,
-        first.month + offset,
-        anchorDay: anchor.day,
-        hour: anchor.hour,
-        minute: anchor.minute,
-      ),
-  ];
+  return _monthlyOccurrences(
+    location: location,
+    first: first,
+    count: monthlyCount,
+    anchorDay: anchor.day,
+    hour: anchor.hour,
+    minute: anchor.minute,
+  );
 }
 
 int stableNotificationId(NotificationIdNamespace namespace, String value) {
@@ -181,29 +173,21 @@ tz.TZDateTime _nextMonthly(
   tz.TZDateTime now,
   tz.Location location,
 ) {
-  var candidate = _monthlyCandidate(
-    location,
-    now.year,
-    now.month,
-    anchorDay: anchor.day,
-    hour: anchor.hour,
-    minute: anchor.minute,
-  );
-  if (!candidate.isAfter(now)) {
-    final nextMonth = tz.TZDateTime(location, now.year, now.month + 1);
-    candidate = _monthlyCandidate(
+  for (var offset = 0; ; offset++) {
+    final month = tz.TZDateTime(location, now.year, now.month + offset);
+    final candidate = _monthlyCandidate(
       location,
-      nextMonth.year,
-      nextMonth.month,
+      month.year,
+      month.month,
       anchorDay: anchor.day,
       hour: anchor.hour,
       minute: anchor.minute,
     );
+    if (candidate != null && candidate.isAfter(now)) return candidate;
   }
-  return candidate;
 }
 
-tz.TZDateTime _monthlyCandidate(
+tz.TZDateTime? _monthlyCandidate(
   tz.Location location,
   int year,
   int month, {
@@ -213,7 +197,31 @@ tz.TZDateTime _monthlyCandidate(
 }) {
   final lastDay = tz.TZDateTime(location, year, month + 1, 0).day;
   final day = anchorDay > lastDay ? lastDay : anchorDay;
-  return tz.TZDateTime(location, year, month, day, hour, minute);
+  return _validWallTime(location, year, month, day, hour, minute);
+}
+
+List<tz.TZDateTime> _monthlyOccurrences({
+  required tz.Location location,
+  required tz.TZDateTime first,
+  required int count,
+  required int anchorDay,
+  required int hour,
+  required int minute,
+}) {
+  final result = <tz.TZDateTime>[];
+  for (var offset = 0; result.length < count; offset++) {
+    final month = tz.TZDateTime(location, first.year, first.month + offset);
+    final candidate = _monthlyCandidate(
+      location,
+      month.year,
+      month.month,
+      anchorDay: anchorDay,
+      hour: hour,
+      minute: minute,
+    );
+    if (candidate != null && !candidate.isBefore(first)) result.add(candidate);
+  }
+  return result;
 }
 
 tz.TZDateTime? _validWallTime(

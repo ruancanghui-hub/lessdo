@@ -200,45 +200,50 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
-    if (oldVersion >= 2) return;
-    await database.execute('ALTER TABLE tasks ADD reminder_local_date TEXT');
-    await database.execute('ALTER TABLE tasks ADD reminder_local_hour INTEGER');
-    await database.execute(
-      'ALTER TABLE tasks ADD reminder_local_minute INTEGER',
-    );
-    await database.execute('ALTER TABLE tasks ADD reminder_time_zone_id TEXT');
-    await database.execute('''
-      CREATE TABLE notification_ids (
-        task_id TEXT NOT NULL,
-        occurrence_key TEXT NOT NULL,
-        notification_id INTEGER NOT NULL UNIQUE,
-        PRIMARY KEY(task_id, occurrence_key)
-      )
-    ''');
-    final rows = await database.query(
-      'tasks',
-      columns: ['id', 'reminder_at_utc'],
-      where: 'reminder_at_utc IS NOT NULL',
-    );
-    for (final row in rows) {
-      final local = DateTime.fromMicrosecondsSinceEpoch(
-        row['reminder_at_utc']! as int,
-        isUtc: true,
-      ).toLocal();
-      await database.update(
-        'tasks',
-        {
-          'reminder_local_date':
-              '${local.year.toString().padLeft(4, '0')}-'
-              '${local.month.toString().padLeft(2, '0')}-'
-              '${local.day.toString().padLeft(2, '0')}',
-          'reminder_local_hour': local.hour,
-          'reminder_local_minute': local.minute,
-          'reminder_time_zone_id': 'legacy-system-local',
-        },
-        where: 'id = ?',
-        whereArgs: [row['id']],
+    if (oldVersion < 2) {
+      await database.execute('ALTER TABLE tasks ADD reminder_local_date TEXT');
+      await database.execute(
+        'ALTER TABLE tasks ADD reminder_local_hour INTEGER',
       );
+      await database.execute(
+        'ALTER TABLE tasks ADD reminder_local_minute INTEGER',
+      );
+      await database.execute(
+        'ALTER TABLE tasks ADD reminder_time_zone_id TEXT',
+      );
+      await database.execute('''
+        CREATE TABLE notification_ids (
+          task_id TEXT NOT NULL,
+          occurrence_key TEXT NOT NULL,
+          notification_id INTEGER NOT NULL UNIQUE,
+          PRIMARY KEY(task_id, occurrence_key)
+        )
+      ''');
+      final rows = await database.query(
+        'tasks',
+        columns: ['id', 'reminder_at_utc'],
+        where: 'reminder_at_utc IS NOT NULL',
+      );
+      for (final row in rows) {
+        final local = DateTime.fromMicrosecondsSinceEpoch(
+          row['reminder_at_utc']! as int,
+          isUtc: true,
+        ).toLocal();
+        await database.update(
+          'tasks',
+          {
+            'reminder_local_date':
+                '${local.year.toString().padLeft(4, '0')}-'
+                '${local.month.toString().padLeft(2, '0')}-'
+                '${local.day.toString().padLeft(2, '0')}',
+            'reminder_local_hour': local.hour,
+            'reminder_local_minute': local.minute,
+            'reminder_time_zone_id': 'legacy-system-local',
+          },
+          where: 'id = ?',
+          whereArgs: [row['id']],
+        );
+      }
     }
   }
 

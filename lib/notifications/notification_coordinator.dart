@@ -178,10 +178,10 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
       return ReminderScheduleStatus.permissionDenied;
     }
     await _refreshLocation();
+    final report = await _queueReconcile(overrideTask: task);
     if (_candidatesFor(task, now: _now()).isEmpty) {
       return ReminderScheduleStatus.noOccurrence;
     }
-    final report = await _queueReconcile(overrideTask: task);
     if (report.failedTaskIds.contains(task.id)) {
       throw StateError('Reminder scheduling failed for ${task.id}.');
     }
@@ -192,8 +192,6 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
   Future<void> cancel(String taskId) async {
     Object? firstError;
     final ids = <int>{
-      taskNotificationId(taskId),
-      taskSnoozeNotificationId(taskId),
       for (final pending in await _platform.pendingNotifications())
         if (_parseTaskActionPayload(pending.payload) == taskId) pending.id,
     };
@@ -218,13 +216,28 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
       _now().add(const Duration(minutes: 10)),
       _location,
     );
+    final occurrenceKey = 'snooze:${date.toUtc().microsecondsSinceEpoch}';
+    await _repository.notificationIdFor(
+      taskId: task.id,
+      occurrenceKey: task.repeatRule.name,
+    );
+    final id = await _repository.notificationIdFor(
+      taskId: task.id,
+      occurrenceKey: occurrenceKey,
+    );
     await _platform.schedule(
       _notification(
         task,
-        id: taskSnoozeNotificationId(task.id),
+        id: id,
         date: date,
         repeatRule: RepeatRule.none,
-        payload: taskSnoozeNotificationPayload(task.id),
+        payload: _notificationPayload(
+          task,
+          type: 'task_snooze',
+          occurrenceKey: occurrenceKey,
+          date: date,
+          repeatRule: RepeatRule.none,
+        ),
       ),
     );
     return ReminderScheduleStatus.scheduled;
@@ -314,7 +327,8 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
     for (final item in pending) {
       final taskId = parseTaskNotificationPayload(item.payload);
       if (taskId != null) {
-        if (!expectedById.containsKey(item.id)) {
+        final expectedItem = expectedById[item.id];
+        if (expectedItem == null || expectedItem.payload != item.payload) {
           await _platform.cancel(item.id);
           cancelled.add(taskId);
         } else {
@@ -334,7 +348,7 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
 
     final permission = await _platform.getPermissionStatus();
     final scheduled = <String>{};
-    final failed = <String>{...capacity};
+    final failed = <String>{};
     final expectedByTask = <String, List<ScheduledNotification>>{};
     for (final item in expected) {
       expectedByTask.putIfAbsent(item.taskId, () => []).add(item);
@@ -417,11 +431,37 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
           id: id,
           date: candidate.date,
           repeatRule: candidate.repeatRule,
-          payload: taskNotificationPayload(candidate.task.id),
+          payload: _notificationPayload(
+            candidate.task,
+            type: 'task',
+            occurrenceKey: candidate.occurrenceKey,
+            date: candidate.date,
+            repeatRule: candidate.repeatRule,
+          ),
         ),
       );
     }
     return result;
+  }
+
+  String _notificationPayload(
+    TaskItem task, {
+    required String type,
+    required String occurrenceKey,
+    required tz.TZDateTime date,
+    required RepeatRule repeatRule,
+  }) {
+    return jsonEncode({
+      'version': 2,
+      'type': type,
+      'taskId': task.id,
+      'occurrenceKey': occurrenceKey,
+      'scheduledUtc': date.toUtc().microsecondsSinceEpoch,
+      'repeatRule': repeatRule.name,
+      'title': task.title,
+      'body': task.notes.isEmpty ? 'LessDo reminder' : task.notes,
+      'timeZone': _location.name,
+    });
   }
 
   ScheduledNotification _notification(

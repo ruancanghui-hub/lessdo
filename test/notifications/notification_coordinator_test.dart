@@ -176,6 +176,68 @@ void main() {
   );
 
   test(
+    'reconcile replaces a pending request after task content changes',
+    () async {
+      final repository = _MemoryTaskRepository(tasks: [_task('task-1')]);
+      final platform = _FakeNotificationPlatform()
+        ..permissionStatus = NotificationPermissionStatus.granted;
+      final coordinator = _coordinator(
+        platform: platform,
+        repository: repository,
+      );
+
+      await coordinator.reconcile();
+      final original = platform.pending.single;
+      await repository.saveTask(
+        repository.tasks.single.copyWith(
+          title: 'Updated title',
+          notes: 'Updated notes',
+        ),
+      );
+      platform.scheduled.clear();
+
+      await coordinator.reconcile();
+
+      expect(platform.cancelledIds, contains(original.id));
+      expect(platform.scheduled.single.title, 'Updated title');
+      expect(platform.scheduled.single.body, 'Updated notes');
+      expect(platform.pending.single.payload, isNot(original.payload));
+    },
+  );
+
+  test(
+    'reconcile removes a formerly valid reminder after it becomes past',
+    () async {
+      final repository = _MemoryTaskRepository(tasks: [_task('task-1')]);
+      final platform = _FakeNotificationPlatform()
+        ..permissionStatus = NotificationPermissionStatus.granted;
+      final coordinator = _coordinator(
+        platform: platform,
+        repository: repository,
+      );
+
+      await coordinator.reconcile();
+      expect(platform.pending, hasLength(1));
+      await repository.saveTask(
+        repository.tasks.single.copyWith(
+          reminderAt: DateTime.utc(2025, 1, 1),
+          reminderAnchor: const ReminderAnchor(
+            year: 2025,
+            month: 1,
+            day: 1,
+            hour: 0,
+            minute: 0,
+          ),
+        ),
+      );
+
+      await coordinator.reconcile();
+
+      expect(platform.pending, isEmpty);
+    },
+  );
+
+  test(
     'active snoozes reserve space inside the global pending limit',
     () async {
       final tasks = [
@@ -414,19 +476,13 @@ void main() {
   test(
     'reconcile cancels orphan and schedules missing without permission prompt',
     () async {
-      final repository = _MemoryTaskRepository(
-        tasks: [_task('missing'), _task('present')],
-      );
+      final repository = _MemoryTaskRepository(tasks: [_task('missing')]);
       final platform = _FakeNotificationPlatform()
         ..permissionStatus = NotificationPermissionStatus.granted
         ..pending.addAll([
           PendingNotification(
             id: taskNotificationId('orphan'),
             payload: taskNotificationPayload('orphan'),
-          ),
-          PendingNotification(
-            id: taskNotificationId('present'),
-            payload: taskNotificationPayload('present'),
           ),
         ]);
       final coordinator = _coordinator(
@@ -486,15 +542,19 @@ void main() {
   );
 
   test('cancel removes both the task reminder and its snooze', () async {
-    final platform = _FakeNotificationPlatform();
+    final platform = _FakeNotificationPlatform()
+      ..pending.addAll([
+        PendingNotification(id: 11, payload: taskNotificationPayload('task-1')),
+        PendingNotification(
+          id: 12,
+          payload: taskSnoozeNotificationPayload('task-1'),
+        ),
+      ]);
     final coordinator = _coordinator(platform: platform);
 
     await coordinator.cancel('task-1');
 
-    expect(platform.cancelledIds, [
-      taskNotificationId('task-1'),
-      taskSnoozeNotificationId('task-1'),
-    ]);
+    expect(platform.cancelledIds, [11, 12]);
   });
 
   test('reconcile cancels an orphaned snooze', () async {

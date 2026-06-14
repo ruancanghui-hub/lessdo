@@ -167,6 +167,11 @@ class SqliteTaskRepository implements TaskRepository {
   @override
   Future<void> deleteTask(String taskId) {
     return _database.transaction((transaction) async {
+      await transaction.delete(
+        'notification_ids',
+        where: 'task_id = ?',
+        whereArgs: [taskId],
+      );
       await transaction.delete('tasks', where: 'id = ?', whereArgs: [taskId]);
     });
   }
@@ -200,6 +205,11 @@ class SqliteTaskRepository implements TaskRepository {
             whereArgs: [listId],
           );
         case ListDeletionStrategy.deleteTasks:
+          await transaction.delete(
+            'notification_ids',
+            where: 'task_id IN (SELECT id FROM tasks WHERE list_id = ?)',
+            whereArgs: [listId],
+          );
           await transaction.delete(
             'tasks',
             where: 'list_id = ?',

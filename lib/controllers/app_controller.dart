@@ -620,6 +620,12 @@ class AppController extends ChangeNotifier {
     if (failedIds.isNotEmpty) {
       _recordWarning('reconcileReminders', failedIds);
     }
+    if (report.capacityLimitedTaskIds.isNotEmpty) {
+      _recordWarning(
+        'notificationCapacityLimited',
+        report.capacityLimitedTaskIds,
+      );
+    }
   }
 
   TaskItem? _taskOrNull(String id) {
