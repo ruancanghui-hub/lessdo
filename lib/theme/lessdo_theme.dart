@@ -90,6 +90,27 @@ class LessDoTheme {
       ),
     );
   }
+
+  static ThemeData buildDark({required bool largeText}) {
+    final base = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      fontFamily: '.SF Pro Text',
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF6CA6FF),
+        brightness: Brightness.dark,
+      ),
+    );
+    final scale = largeText ? 1.1 : 1.0;
+    return base.copyWith(
+      splashFactory: NoSplash.splashFactory,
+      textTheme: base.textTheme.apply(fontSizeFactor: scale),
+      cupertinoOverrideTheme: const CupertinoThemeData(
+        brightness: Brightness.dark,
+        primaryColor: Color(0xFF6CA6FF),
+      ),
+    );
+  }
 }
 
 class LessDoPalette {

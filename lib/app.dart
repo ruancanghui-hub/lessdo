@@ -1,8 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'controllers/app_controller.dart';
+import 'l10n/app_localizations.dart';
+import 'models/app_settings.dart';
+import 'pages/onboarding_page.dart';
 import 'pages/root_page.dart';
 import 'theme/lessdo_theme.dart';
 
@@ -63,15 +67,40 @@ class _LessDoAppState extends State<LessDoApp> with WidgetsBindingObserver {
       animation: widget.store,
       builder: (context, _) {
         return MaterialApp(
-          title: 'LessDo',
+          onGenerateTitle: (context) => AppLocalizations.of(context).appName,
           debugShowCheckedModeBanner: false,
+          locale: switch (widget.store.settings.language) {
+            AppLanguage.system => null,
+            AppLanguage.english => const Locale('en'),
+            AppLanguage.simplifiedChinese => const Locale('zh'),
+          },
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: LessDoTheme.build(
             widget.store.settings.themeId,
             largeText: widget.store.settings.largeText,
           ),
+          darkTheme: LessDoTheme.buildDark(
+            largeText: widget.store.settings.largeText,
+          ),
+          themeMode: widget.store.settings.themeId == 'system'
+              ? ThemeMode.system
+              : ThemeMode.light,
           home: _locked
               ? _LockPage(authenticating: _authenticating, onUnlock: _unlock)
-              : RootPage(store: widget.store),
+              : widget.store.settings.hasCompletedOnboarding
+              ? RootPage(store: widget.store)
+              : OnboardingPage(
+                  onComplete: () => widget.store.updateSettingsWith(
+                    (settings) =>
+                        settings.copyWith(hasCompletedOnboarding: true),
+                  ),
+                ),
         );
       },
     );
@@ -86,6 +115,7 @@ class _LockPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -100,13 +130,13 @@ class _LockPage extends StatelessWidget {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(height: 18),
-                const Text(
-                  'LessDo is locked',
+                Text(
+                  l10n.lockedTitle,
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Authenticate to view your lists.',
+                Text(
+                  l10n.lockedBody,
                   style: TextStyle(color: Color(0xFF777A82)),
                 ),
                 const SizedBox(height: 22),
@@ -118,7 +148,9 @@ class _LockPage extends StatelessWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.fingerprint_rounded),
-                  label: Text(authenticating ? 'Authenticating' : 'Unlock'),
+                  label: Text(
+                    authenticating ? l10n.authenticating : l10n.unlock,
+                  ),
                 ),
               ],
             ),

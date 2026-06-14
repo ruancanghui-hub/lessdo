@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/task_list.dart';
 import '../controllers/app_controller.dart';
+import '../l10n/app_localizations.dart';
 import 'focus_page.dart';
 import 'list_detail_page.dart';
 import 'lists_page.dart';
@@ -140,6 +141,7 @@ class _RootPageState extends State<RootPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final pages = [
       TodayPage(
         store: widget.store,
@@ -166,25 +168,25 @@ class _RootPageState extends State<RootPage> {
         selectedIndex: _index,
         onDestinationSelected: _setIndex,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(CupertinoIcons.house),
-            selectedIcon: Icon(CupertinoIcons.house_fill),
-            label: 'Today',
+            icon: const Icon(CupertinoIcons.house),
+            selectedIcon: const Icon(CupertinoIcons.house_fill),
+            label: l10n.today,
           ),
           NavigationDestination(
-            icon: Icon(CupertinoIcons.list_bullet),
-            label: 'Lists',
+            icon: const Icon(CupertinoIcons.list_bullet),
+            label: l10n.lists,
           ),
           NavigationDestination(
-            icon: Icon(CupertinoIcons.timer),
-            selectedIcon: Icon(CupertinoIcons.timer_fill),
-            label: 'Focus',
+            icon: const Icon(CupertinoIcons.timer),
+            selectedIcon: const Icon(CupertinoIcons.timer_fill),
+            label: l10n.focus,
           ),
           NavigationDestination(
-            icon: Icon(CupertinoIcons.gear),
-            selectedIcon: Icon(CupertinoIcons.gear_solid),
-            label: 'Settings',
+            icon: const Icon(CupertinoIcons.gear),
+            selectedIcon: const Icon(CupertinoIcons.gear_solid),
+            label: l10n.settings,
           ),
         ],
       ),

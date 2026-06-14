@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../controllers/app_controller.dart';
+import '../l10n/app_localizations.dart';
+import '../models/app_settings.dart';
 import '../theme/lessdo_theme.dart';
 import '../widgets/lessdo_top_bar.dart';
 import 'legal_page.dart';
@@ -13,52 +15,54 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       children: [
-        const LessDoTopBar(title: 'Settings'),
+        LessDoTopBar(title: l10n.settings),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(22, 10, 22, 22),
             children: [
-              _ProfileRow(store: store),
-              const _GroupTitle('Appearance'),
+              _GroupTitle(l10n.appearance),
               _ThemePicker(store: store),
+              _SettingsLink(
+                icon: CupertinoIcons.globe,
+                title: l10n.language,
+                subtitle: _languageName(l10n, store.settings.language),
+                onTap: () => _showLanguagePicker(context, store),
+              ),
               _SettingsToggle(
                 icon: CupertinoIcons.textformat_size,
-                title: 'Large text',
-                subtitle: 'More comfortable list reading',
+                title: l10n.largeText,
+                subtitle: l10n.largeTextSubtitle,
                 value: store.settings.largeText,
                 onChanged: (value) => store.updateSettingsWith(
                   (current) => current.copyWith(largeText: value),
                 ),
               ),
-              const _GroupTitle('Privacy'),
+              _GroupTitle(l10n.privacy),
               _SettingsToggle(
                 icon: CupertinoIcons.lock_shield,
-                title: 'Face ID lock',
-                subtitle: 'Protect your private lists',
+                title: l10n.faceIdLock,
+                subtitle: l10n.faceIdLockSubtitle,
                 value: store.settings.faceId,
                 onChanged: (value) async {
                   final changed = await store.updateFaceId(value);
                   if (!changed && context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Biometric authentication is unavailable or was canceled.',
-                        ),
-                      ),
+                      SnackBar(content: Text(l10n.biometricUnavailable)),
                     );
                   }
                 },
               ),
               _SettingsLink(
                 icon: CupertinoIcons.lock,
-                title: 'Privacy & permissions',
-                subtitle: 'How LessDo handles your data',
+                title: l10n.privacyPermissions,
+                subtitle: l10n.privacyPermissionsSubtitle,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => const LegalPage(
-                      title: 'Privacy Policy',
+                    builder: (_) => LegalPage(
+                      title: l10n.privacyPolicy,
                       content: privacyPolicy,
                     ),
                   ),
@@ -66,14 +70,12 @@ class SettingsPage extends StatelessWidget {
               ),
               _SettingsLink(
                 icon: CupertinoIcons.doc_text,
-                title: 'Terms of Use',
-                subtitle: 'Standard terms and subscriptions',
+                title: l10n.termsOfUse,
+                subtitle: l10n.termsOfUseSubtitle,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => const LegalPage(
-                      title: 'Terms of Use',
-                      content: termsOfUse,
-                    ),
+                    builder: (_) =>
+                        LegalPage(title: l10n.termsOfUse, content: termsOfUse),
                   ),
                 ),
               ),
@@ -83,48 +85,51 @@ class SettingsPage extends StatelessWidget {
       ],
     );
   }
-}
 
-class _ProfileRow extends StatelessWidget {
-  const _ProfileRow({required this.store});
+  String _languageName(AppLocalizations l10n, AppLanguage language) {
+    return switch (language) {
+      AppLanguage.system => l10n.languageSystem,
+      AppLanguage.english => l10n.languageEnglish,
+      AppLanguage.simplifiedChinese => l10n.languageSimplifiedChinese,
+    };
+  }
 
-  final AppController store;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(0, 14, 0, 20),
-      margin: const EdgeInsets.only(bottom: 24),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Theme.of(context).dividerColor),
+  Future<void> _showLanguagePicker(BuildContext context, AppController store) {
+    final l10n = AppLocalizations.of(context);
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(
+                  l10n.language,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              for (final language in AppLanguage.values)
+                ListTile(
+                  minTileHeight: 52,
+                  title: Text(_languageName(l10n, language)),
+                  trailing: store.settings.language == language
+                      ? const Icon(CupertinoIcons.check_mark)
+                      : null,
+                  onTap: () async {
+                    await store.updateSettingsWith(
+                      (settings) => settings.copyWith(language: language),
+                    );
+                    if (sheetContext.mounted) {
+                      Navigator.of(sheetContext).pop();
+                    }
+                  },
+                ),
+            ],
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            CupertinoIcons.person_crop_circle_fill,
-            color: Color(0xFF7C8798),
-            size: 42,
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'LessDo User',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  'Free plan · local-first',
-                  style: TextStyle(color: Color(0xFF898C94), fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -137,6 +142,7 @@ class _ThemePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
@@ -177,7 +183,14 @@ class _ThemePicker extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        entry.value.name,
+                        switch (entry.key) {
+                          'system' => l10n.themeSystem,
+                          'snow' => l10n.themeSnow,
+                          'mint' => l10n.themeMint,
+                          'sky' => l10n.themeSky,
+                          'blush' => l10n.themeBlush,
+                          _ => entry.value.name,
+                        },
                         style: const TextStyle(
                           color: Color(0xFF80838B),
                           fontSize: 11,

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../models/task_item.dart';
 import '../controllers/app_controller.dart';
+import '../l10n/app_localizations.dart';
 import '../widgets/lessdo_top_bar.dart';
 import '../widgets/quick_add.dart';
 import '../widgets/section_label.dart';
@@ -24,6 +25,7 @@ class TodayPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final today = store.todayTasks;
     final overdue = store.overdueTasks;
     final nextReminder = today
@@ -34,7 +36,7 @@ class TodayPage extends StatelessWidget {
 
     return Column(
       children: [
-        LessDoTopBar(title: 'Today', onLeading: onOpenLists),
+        LessDoTopBar(title: l10n.today, onLeading: onOpenLists),
         SizedBox(
           height: 67,
           child: Padding(
@@ -46,12 +48,14 @@ class TodayPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      DateFormat('EEE, MMM d').format(DateTime.now()),
+                      DateFormat.yMMMEd(
+                        Localizations.localeOf(context).toLanguageTag(),
+                      ).format(DateTime.now()),
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '$openCount things left',
+                      l10n.thingsLeft(openCount),
                       style: const TextStyle(
                         color: Color(0xFF9699A1),
                         fontSize: 12,
@@ -74,10 +78,10 @@ class TodayPage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(22, 0, 22, 18),
             children: [
               if (overdue.isNotEmpty) ...[
-                const SectionLabel(
+                SectionLabel(
                   icon: CupertinoIcons.clock,
-                  label: 'Overdue',
-                  color: Color(0xFFEE5358),
+                  label: l10n.overdue,
+                  color: const Color(0xFFEE5358),
                 ),
                 for (final task in overdue)
                   TaskRow(
@@ -99,7 +103,7 @@ class TodayPage extends StatelessWidget {
                 ),
               SectionLabel(
                 icon: CupertinoIcons.sun_max,
-                label: 'Today',
+                label: l10n.today,
                 color: const Color(0xFFDF9C00),
                 count: today.length,
                 bottomBorder: true,
@@ -112,7 +116,11 @@ class TodayPage extends StatelessWidget {
                   onOpen: () =>
                       showTaskEditor(context, store: store, taskId: task.id),
                 ),
+              if (today.isEmpty && overdue.isEmpty)
+                _EmptyInbox(title: l10n.inboxEmpty, body: l10n.inboxEmptyBody),
               _FocusEntry(
+                title: l10n.focusTime,
+                subtitle: l10n.startFocusSession,
                 onTap: () {
                   final preferred = today
                       .where((task) => task.title == 'Finish PRD draft')
@@ -143,6 +151,7 @@ class _ReminderBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: InkWell(
@@ -169,8 +178,8 @@ class _ReminderBanner extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'NEXT REMINDER',
+                    Text(
+                      l10n.nextReminder,
                       style: TextStyle(
                         color: Color(0xFF696B73),
                         fontSize: 11,
@@ -178,7 +187,12 @@ class _ReminderBanner extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${task.title} at ${DateFormat.jm().format(task.reminderAtLocal!)}',
+                      l10n.reminderAt(
+                        task.title,
+                        DateFormat.jm(
+                          Localizations.localeOf(context).toLanguageTag(),
+                        ).format(task.reminderAtLocal!),
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -189,8 +203,8 @@ class _ReminderBanner extends StatelessWidget {
                   ],
                 ),
               ),
-              const Text(
-                'Today',
+              Text(
+                l10n.today,
                 style: TextStyle(color: Color(0xFF2D76EF), fontSize: 12),
               ),
             ],
@@ -202,9 +216,15 @@ class _ReminderBanner extends StatelessWidget {
 }
 
 class _FocusEntry extends StatelessWidget {
-  const _FocusEntry({required this.onTap});
+  const _FocusEntry({
+    required this.onTap,
+    required this.title,
+    required this.subtitle,
+  });
 
   final VoidCallback onTap;
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -228,18 +248,18 @@ class _FocusEntry extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Focus time',
+                    title,
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
                   SizedBox(height: 3),
                   Text(
-                    'Start a 25-minute session',
+                    subtitle,
                     style: TextStyle(color: Color(0xFF7D7F87), fontSize: 12),
                   ),
                 ],
@@ -264,6 +284,7 @@ class _CompletedTasks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final completed = store.tasks
         .where((task) => task.completed)
         .take(3)
@@ -277,7 +298,9 @@ class _CompletedTasks extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Completed · ${store.tasks.where((task) => task.completed).length}',
+            l10n.completedCount(
+              store.tasks.where((task) => task.completed).length,
+            ),
             style: const TextStyle(
               color: Color(0xFF777981),
               fontSize: 13,
@@ -303,6 +326,44 @@ class _CompletedTasks extends StatelessWidget {
                 style: const TextStyle(decoration: TextDecoration.lineThrough),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyInbox extends StatelessWidget {
+  const _EmptyInbox({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      child: Column(
+        children: [
+          Icon(
+            CupertinoIcons.tray,
+            size: 34,
+            color: Theme.of(context).colorScheme.outline,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            body,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );

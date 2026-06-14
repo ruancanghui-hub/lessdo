@@ -1,0 +1,76 @@
+{
+  "@@locale": "en",
+  "appName": "LessDo",
+  "today": "Today",
+  "lists": "Lists",
+  "focus": "Focus",
+  "settings": "Settings",
+  "appearance": "Appearance",
+  "language": "Language",
+  "languageSystem": "System",
+  "languageEnglish": "English",
+  "languageSimplifiedChinese": "简体中文",
+  "largeText": "Large text",
+  "largeTextSubtitle": "More comfortable list reading",
+  "privacy": "Privacy",
+  "faceIdLock": "Face ID lock",
+  "faceIdLockSubtitle": "Protect your private lists",
+  "biometricUnavailable": "Biometric authentication is unavailable or was canceled.",
+  "privacyPermissions": "Privacy & permissions",
+  "privacyPermissionsSubtitle": "How LessDo handles your data",
+  "privacyPolicy": "Privacy Policy",
+  "termsOfUse": "Terms of Use",
+  "termsOfUseSubtitle": "The terms that govern use of LessDo",
+  "themeSystem": "System",
+  "themeSnow": "Snow",
+  "themeMint": "Mint",
+  "themeSky": "Sky",
+  "themeBlush": "Blush",
+  "welcomeTitle": "Welcome to LessDo",
+  "welcomeSubtitle": "A calm place for tasks, reminders, and focused work.",
+  "onboardingCaptureTitle": "Capture quickly",
+  "onboardingCaptureBody": "Add a thought in seconds and organize it when you are ready.",
+  "onboardingRemindersTitle": "Remember at the right time",
+  "onboardingRemindersBody": "Optional local reminders stay on your device and work without an account.",
+  "onboardingFocusTitle": "Make room to focus",
+  "onboardingFocusBody": "Use a simple timer and keep a private history of completed sessions.",
+  "skip": "Skip",
+  "continueAction": "Continue",
+  "inboxEmpty": "Inbox is empty",
+  "inboxEmptyBody": "Add a task below when something comes to mind.",
+  "thingsLeft": "{count, plural, =0{Nothing left} =1{1 thing left} other{{count} things left}}",
+  "@thingsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "overdue": "Overdue",
+  "nextReminder": "NEXT REMINDER",
+  "reminderAt": "{title} at {time}",
+  "@reminderAt": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "focusTime": "Focus time",
+  "startFocusSession": "Start a 25-minute session",
+  "completedCount": "Completed · {count}",
+  "@completedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockedTitle": "LessDo is locked",
+  "lockedBody": "Authenticate to view your lists.",
+  "authenticating": "Authenticating",
+  "unlock": "Unlock"
+}

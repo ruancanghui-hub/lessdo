@@ -1,0 +1,76 @@
+{
+  "@@locale": "zh",
+  "appName": "LessDo",
+  "today": "今天",
+  "lists": "清单",
+  "focus": "专注",
+  "settings": "设置",
+  "appearance": "外观",
+  "language": "语言",
+  "languageSystem": "跟随系统",
+  "languageEnglish": "English",
+  "languageSimplifiedChinese": "简体中文",
+  "largeText": "大号文字",
+  "largeTextSubtitle": "更舒适地阅读清单",
+  "privacy": "隐私",
+  "faceIdLock": "Face ID 锁定",
+  "faceIdLockSubtitle": "保护你的私人清单",
+  "biometricUnavailable": "生物识别不可用或验证已取消。",
+  "privacyPermissions": "隐私与权限",
+  "privacyPermissionsSubtitle": "LessDo 如何处理你的数据",
+  "privacyPolicy": "隐私政策",
+  "termsOfUse": "使用条款",
+  "termsOfUseSubtitle": "使用 LessDo 时适用的条款",
+  "themeSystem": "系统",
+  "themeSnow": "雪白",
+  "themeMint": "薄荷",
+  "themeSky": "天空",
+  "themeBlush": "浅绯",
+  "welcomeTitle": "欢迎使用 LessDo",
+  "welcomeSubtitle": "安静地管理任务、提醒与专注时间。",
+  "onboardingCaptureTitle": "快速记录",
+  "onboardingCaptureBody": "几秒钟记下一件事，准备好时再整理。",
+  "onboardingRemindersTitle": "在合适的时间提醒",
+  "onboardingRemindersBody": "可选的本地提醒保存在设备上，无需账户也能使用。",
+  "onboardingFocusTitle": "留出专注时间",
+  "onboardingFocusBody": "使用简单的计时器，并在设备上保留私人专注记录。",
+  "skip": "跳过",
+  "continueAction": "继续",
+  "inboxEmpty": "收件箱是空的",
+  "inboxEmptyBody": "想到事情时，可以在下方添加任务。",
+  "thingsLeft": "还剩 {count} 件事",
+  "@thingsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "overdue": "已逾期",
+  "nextReminder": "下一个提醒",
+  "reminderAt": "{title}，{time}",
+  "@reminderAt": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "focusTime": "专注时间",
+  "startFocusSession": "开始 25 分钟专注",
+  "completedCount": "已完成 · {count}",
+  "@completedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockedTitle": "LessDo 已锁定",
+  "lockedBody": "验证身份后查看你的清单。",
+  "authenticating": "正在验证",
+  "unlock": "解锁"
+}

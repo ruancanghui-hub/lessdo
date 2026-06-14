@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lessdo/app.dart';
 import 'package:lessdo/controllers/app_controller.dart';
 import 'package:lessdo/data/settings_repository.dart';
 import 'package:lessdo/data/task_repository.dart';
+import 'package:lessdo/l10n/app_localizations.dart';
 import 'package:lessdo/models/active_focus_session.dart';
 import 'package:lessdo/models/focus_session.dart';
 import 'package:lessdo/models/task_item.dart';
@@ -32,6 +34,13 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
         home: RootPage(
           store: controller,
           initialLink: () async => null,
