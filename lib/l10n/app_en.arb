@@ -85,5 +85,9 @@
   "lockedTitle": "LessDo is locked",
   "lockedBody": "Authenticate to view your lists.",
   "authenticating": "Authenticating",
-  "unlock": "Unlock"
+  "unlock": "Unlock",
+  "startupLoading": "Loading LessDo",
+  "startupFailureTitle": "LessDo could not start",
+  "startupFailureBody": "Your data was not deleted. Try again, or export a private diagnostic file for support.",
+  "exportDiagnostics": "Export diagnostics"
 }

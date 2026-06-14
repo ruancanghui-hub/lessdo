@@ -10,16 +10,216 @@ import 'pages/onboarding_page.dart';
 import 'pages/root_page.dart';
 import 'theme/lessdo_theme.dart';
 
-class LessDoApp extends StatefulWidget {
-  const LessDoApp({super.key, required this.store});
+typedef AppLoader = Future<AppController> Function();
+typedef LifecycleReconciler = Future<void> Function(AppController store);
+typedef StartupErrorRecorder = Future<void> Function(Object error);
 
-  final AppController store;
+class AppDependencies {
+  AppDependencies({
+    required AppLoader load,
+    LifecycleReconciler? reconcileLifecycle,
+    Future<void> Function()? exportDiagnostics,
+    StartupErrorRecorder? recordStartupError,
+  }) : initialStore = null,
+       _load = load,
+       _reconcileLifecycle = reconcileLifecycle ?? _defaultReconcile,
+       exportDiagnostics = exportDiagnostics ?? _noOp,
+       recordStartupError = recordStartupError ?? _ignoreError;
+
+  AppDependencies.loaded(AppController store)
+    : initialStore = store,
+      _load = (() async => store),
+      _reconcileLifecycle = _defaultReconcile,
+      exportDiagnostics = _noOp,
+      recordStartupError = _ignoreError;
+
+  final AppController? initialStore;
+  final AppLoader _load;
+  final LifecycleReconciler _reconcileLifecycle;
+  final Future<void> Function() exportDiagnostics;
+  final StartupErrorRecorder recordStartupError;
+  Future<void>? _activeReconciliation;
+
+  Future<AppController> load() => _load();
+
+  Future<void> reconcile(AppController store) {
+    final active = _activeReconciliation;
+    if (active != null) return active;
+    final future = _reconcileLifecycle(store);
+    _activeReconciliation = future;
+    void clear() {
+      if (identical(_activeReconciliation, future)) {
+        _activeReconciliation = null;
+      }
+    }
+
+    future.then<void>((_) => clear(), onError: (_, _) => clear());
+    return future;
+  }
+
+  static Future<void> _defaultReconcile(AppController store) =>
+      store.reconcileLifecycle();
+
+  static Future<void> _noOp() async {}
+
+  static Future<void> _ignoreError(Object _) async {}
+}
+
+class LessDoApp extends StatefulWidget {
+  LessDoApp({super.key, AppDependencies? dependencies, AppController? store})
+    : assert(
+        dependencies != null || store != null,
+        'Provide dependencies or a loaded store.',
+      ),
+      dependencies = dependencies ?? AppDependencies.loaded(store!);
+
+  final AppDependencies dependencies;
 
   @override
   State<LessDoApp> createState() => _LessDoAppState();
 }
 
-class _LessDoAppState extends State<LessDoApp> with WidgetsBindingObserver {
+class _LessDoAppState extends State<LessDoApp> {
+  AppController? _store;
+  Object? _startupError;
+
+  @override
+  void initState() {
+    super.initState();
+    _store = widget.dependencies.initialStore;
+    if (_store == null) unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    if (mounted) setState(() => _startupError = null);
+    try {
+      final store = await widget.dependencies.load();
+      if (mounted) setState(() => _store = store);
+    } catch (error) {
+      try {
+        await widget.dependencies.recordStartupError(error);
+      } catch (_) {
+        // Diagnostic persistence must never block the recovery interface.
+      }
+      if (mounted) setState(() => _startupError = error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = _store;
+    if (store != null) {
+      return _LoadedApplication(
+        store: store,
+        dependencies: widget.dependencies,
+      );
+    }
+    return _BootstrapApplication(
+      error: _startupError,
+      onRetry: _load,
+      onExportDiagnostics: widget.dependencies.exportDiagnostics,
+    );
+  }
+}
+
+class _BootstrapApplication extends StatelessWidget {
+  const _BootstrapApplication({
+    required this.error,
+    required this.onRetry,
+    required this.onExportDiagnostics,
+  });
+
+  final Object? error;
+  final VoidCallback onRetry;
+  final Future<void> Function() onExportDiagnostics;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      theme: LessDoTheme.build('system', largeText: false),
+      darkTheme: LessDoTheme.buildDark(largeText: false),
+      themeMode: ThemeMode.system,
+      home: Builder(
+        builder: (context) {
+          final l10n = AppLocalizations.of(context);
+          if (error == null) {
+            return Scaffold(
+              key: const Key('app-loading'),
+              body: Center(
+                child: Semantics(
+                  label: l10n.startupLoading,
+                  child: const CircularProgressIndicator(),
+                ),
+              ),
+            );
+          }
+          return Scaffold(
+            key: const Key('startup-recovery'),
+            body: SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.sync_problem_rounded, size: 52),
+                        const SizedBox(height: 20),
+                        Text(
+                          l10n.startupFailureTitle,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          l10n.startupFailureBody,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        FilledButton(
+                          key: const Key('retry-startup'),
+                          onPressed: onRetry,
+                          child: Text(l10n.retry),
+                        ),
+                        TextButton(
+                          key: const Key('export-diagnostics'),
+                          onPressed: () => unawaited(onExportDiagnostics()),
+                          child: Text(l10n.exportDiagnostics),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _LoadedApplication extends StatefulWidget {
+  const _LoadedApplication({required this.store, required this.dependencies});
+
+  final AppController store;
+  final AppDependencies dependencies;
+
+  @override
+  State<_LoadedApplication> createState() => _LoadedApplicationState();
+}
+
+class _LoadedApplicationState extends State<_LoadedApplication>
+    with WidgetsBindingObserver {
   var _locked = false;
   var _authenticating = false;
 
@@ -38,9 +238,17 @@ class _LessDoAppState extends State<LessDoApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused && widget.store.settings.faceId) {
       setState(() => _locked = true);
     } else if (state == AppLifecycleState.resumed) {
-      unawaited(widget.store.reconcileReminders());
-      if (_locked) _unlock();
+      unawaited(_reconcileAndUnlock());
     }
+  }
+
+  Future<void> _reconcileAndUnlock() async {
+    try {
+      await widget.dependencies.reconcile(widget.store);
+    } catch (_) {
+      // Recovery work is best effort; authentication must remain available.
+    }
+    if (_locked) await _unlock();
   }
 
   Future<void> _unlock() async {
@@ -132,12 +340,15 @@ class _LockPage extends StatelessWidget {
                 const SizedBox(height: 18),
                 Text(
                   l10n.lockedTitle,
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   l10n.lockedBody,
-                  style: TextStyle(color: Color(0xFF777A82)),
+                  style: const TextStyle(color: Color(0xFF777A82)),
                 ),
                 const SizedBox(height: 22),
                 FilledButton.icon(

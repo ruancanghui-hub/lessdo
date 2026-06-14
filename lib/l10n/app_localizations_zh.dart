@@ -199,4 +199,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get unlock => '解锁';
+
+  @override
+  String get startupLoading => '正在载入 LessDo';
+
+  @override
+  String get startupFailureTitle => 'LessDo 无法启动';
+
+  @override
+  String get startupFailureBody => '你的数据没有被删除。请重试，或导出不含任务内容的诊断文件以便获取支持。';
+
+  @override
+  String get exportDiagnostics => '导出诊断文件';
 }

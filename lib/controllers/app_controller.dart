@@ -202,6 +202,12 @@ class AppController extends ChangeNotifier {
 
   Future<void> reconcileReminders() => _enqueueMutation(_reconcileReminders);
 
+  Future<void> reconcileLifecycle() async {
+    await _notifications.permissionStatus();
+    await reconcileReminders();
+    await focusController.load();
+  }
+
   Future<void> _reconcileReminders() async {
     try {
       final report = await _notifications.reconcile();

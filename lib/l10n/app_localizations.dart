@@ -469,6 +469,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unlock'**
   String get unlock;
+
+  /// No description provided for @startupLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading LessDo'**
+  String get startupLoading;
+
+  /// No description provided for @startupFailureTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LessDo could not start'**
+  String get startupFailureTitle;
+
+  /// No description provided for @startupFailureBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your data was not deleted. Try again, or export a private diagnostic file for support.'**
+  String get startupFailureBody;
+
+  /// No description provided for @exportDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Export diagnostics'**
+  String get exportDiagnostics;
 }
 
 class _AppLocalizationsDelegate

@@ -40,22 +40,32 @@ Future<void> main() async {
     return true;
   };
 
+  final sharing = ShareService();
+  runApp(
+    LessDoApp(
+      dependencies: AppDependencies(
+        load: () => _loadApplication(diagnostics, sharing),
+        exportDiagnostics: () async {
+          await sharing.shareDiagnostics(await diagnostics.readForExport());
+        },
+        recordStartupError: (error) => diagnostics
+            .record(DiagnosticEvent.storageFailure, error: error)
+            .catchError((_) {}),
+      ),
+    ),
+  );
+}
+
+Future<AppController> _loadApplication(
+  DiagnosticLog diagnostics,
+  ShareService sharing,
+) async {
   final database = await AppDatabase.open();
   final repository = SqliteTaskRepository(database);
   final preferences = await SharedPreferences.getInstance();
   final settingsRepository = SettingsRepository(preferences);
   final timeZone = await initializeNotificationTimeZone();
-  if (timeZone.warning != null) {
-    debugPrint('Notification timezone fallback: ${timeZone.warning!.cause}');
-    unawaited(
-      diagnostics
-          .record(
-            DiagnosticEvent.notificationFailure,
-            error: timeZone.warning!.cause,
-          )
-          .catchError((_) {}),
-    );
-  }
+  _recordTimeZoneWarning(diagnostics, timeZone.warning);
   final notificationPlatform = NotificationService(preferences: preferences);
   final notifications = NotificationCoordinator(
     platform: notificationPlatform,
@@ -63,19 +73,7 @@ Future<void> main() async {
     location: timeZone.location,
     locationProvider: () async {
       final refreshed = await initializeNotificationTimeZone();
-      if (refreshed.warning != null) {
-        debugPrint(
-          'Notification timezone fallback: ${refreshed.warning!.cause}',
-        );
-        unawaited(
-          diagnostics
-              .record(
-                DiagnosticEvent.notificationFailure,
-                error: refreshed.warning!.cause,
-              )
-              .catchError((_) {}),
-        );
-      }
+      _recordTimeZoneWarning(diagnostics, refreshed.warning);
       return refreshed.location;
     },
   );
@@ -86,9 +84,21 @@ Future<void> main() async {
     settingsRepository: settingsRepository,
     notifications: notifications,
     authentication: LocalAuthenticationCoordinator(),
-    sharing: ShareService(),
+    sharing: sharing,
   );
   await store.load();
+  return store;
+}
 
-  runApp(LessDoApp(store: store));
+void _recordTimeZoneWarning(
+  DiagnosticLog diagnostics,
+  NotificationTimeZoneFallbackWarning? warning,
+) {
+  if (warning == null) return;
+  debugPrint('Notification timezone fallback: ${warning.cause}');
+  unawaited(
+    diagnostics
+        .record(DiagnosticEvent.notificationFailure, error: warning.cause)
+        .catchError((_) {}),
+  );
 }

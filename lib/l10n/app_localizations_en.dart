@@ -213,4 +213,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unlock => 'Unlock';
+
+  @override
+  String get startupLoading => 'Loading LessDo';
+
+  @override
+  String get startupFailureTitle => 'LessDo could not start';
+
+  @override
+  String get startupFailureBody =>
+      'Your data was not deleted. Try again, or export a private diagnostic file for support.';
+
+  @override
+  String get exportDiagnostics => 'Export diagnostics';
 }
