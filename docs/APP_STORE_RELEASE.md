@@ -1,30 +1,64 @@
-# LessDo 1.0 Release Checklist
+# LessDo 1.0 App Store Release Checklist
 
-## Publisher setup
+## Submission Blockers
 
-- Replace the support contact placeholder in the in-app privacy policy.
-- Host `docs/PRIVACY_POLICY.md` on a public HTTPS URL for store metadata.
-- Configure Apple Developer and Google Play signing credentials.
-- Copy `android/key.properties.example` to `android/key.properties` and fill
-  it with the publisher-owned upload keystore before the Play Store build.
-- Create the monthly and yearly subscription products.
-- Add localized store copy, screenshots, category, age rating, and review notes.
+- [ ] **PUBLISHER REQUIRED:** replace the support email and privacy URL
+  placeholders in `docs/PRIVACY_POLICY.md`.
+- [ ] **PUBLISHER REQUIRED:** provide a public support URL and public privacy
+  policy URL in App Store Connect.
+- [ ] **PUBLISHER REQUIRED:** confirm the Apple Developer Team, signing
+  certificate, distribution profile, legal seller name, and bundle ID
+  `com.nightelf.lessdo`.
+- [ ] Remove the `DRAFT` marker only after the public policy is reachable.
+
+Do not submit while any item above remains incomplete.
 
 ## App Store Connect
 
-- Bundle ID: `com.nightelf.lessdo`
-- Version: `1.0.0`
-- Build: `1`
-- Subscription IDs: `lessdo_premium_monthly`, `lessdo_premium_yearly`
-- Include Apple's Standard EULA URL in the listing.
-- Complete App Privacy answers based on the final support, analytics, and backend setup.
+- [ ] Version is `1.0.0`; build number is greater than every uploaded build.
+- [ ] Price is Free and there are no paid features in version 1.0.
+- [ ] Primary category is Productivity; secondary category is Utilities.
+- [ ] English and Simplified Chinese metadata match
+  `docs/APP_STORE_METADATA.md`.
+- [ ] App Privacy answer is `No, we do not collect data from this app`.
+- [ ] Age rating answers match the metadata worksheet.
+- [ ] Review notes explain local reminders, optional biometric lock, and URL
+  scheme testing.
+- [ ] One to ten current screenshots are uploaded for the largest required
+  iPhone and iPad display sizes in each supported language.
 
-## Final device checks
+## Build And Compliance
 
-- Create, edit, complete, and delete tasks.
-- Verify reminders after permission approval.
-- Verify Face ID or Touch ID on a physical device.
-- Verify purchase and restore flows with sandbox accounts.
-- Open both documented `lessdo://` URL forms.
-- Test sharing, all focus timer modes, rotation, large text, and iPad layout.
-- Archive with release signing and upload to TestFlight before review.
+- [ ] Release archive uses iOS 16.0 as the minimum deployment target.
+- [ ] `PrivacyInfo.xcprivacy` is present in the Runner app bundle.
+- [ ] Only `NSFaceIDUsageDescription` is present among protected-resource
+  usage descriptions.
+- [ ] Encryption/export-compliance answers are reviewed against the final
+  archive; LessDo contains no custom encryption.
+- [ ] Archive validation reports no privacy-manifest or required-reason API
+  errors.
+- [ ] The final TestFlight build is installed from App Store Connect rather
+  than directly from Xcode.
+
+## Physical Device Checks
+
+- [ ] Fresh install starts with onboarding and an empty Inbox.
+- [ ] Create, edit, complete, reorder, and delete tasks and lists.
+- [ ] Approve and deny notification permission; verify reminder retry.
+- [ ] Verify reminder delivery after force quit, device lock, time-zone change,
+  and device restart.
+- [ ] Verify Face ID or Touch ID enable, cancel, failure, lockout, and recovery.
+- [ ] Verify all focus modes across backgrounding and relaunch.
+- [ ] Verify sharing and diagnostic export contain only expected content.
+- [ ] Open the documented create and open-list deep links.
+- [ ] Test English and Simplified Chinese, large text, rotation, iPhone, and
+  iPad layouts.
+- [ ] Confirm no unexpected network traffic during normal use.
+
+## Final Evidence
+
+- [ ] Test device models and OS versions recorded.
+- [ ] TestFlight build number recorded.
+- [ ] Archive validation log retained.
+- [ ] App Store screenshots reviewed against the submitted build.
+- [ ] Product owner signs off the exact metadata and privacy answers.
