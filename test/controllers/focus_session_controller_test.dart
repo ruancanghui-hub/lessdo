@@ -213,6 +213,59 @@ void main() {
       expect(busyStates, containsAllInOrder([true, false, true, false]));
     },
   );
+
+  test('load and start serialize so the newest session wins', () async {
+    repository.active = ActiveFocusSession.countUp(
+      id: 'stored',
+      startedAt: clock.now(),
+      taskTitle: 'Stored',
+    );
+    repository.blockNextActiveLoad();
+
+    final loading = controller.load();
+    await repository.activeLoadStarted!.future;
+    final starting = controller.startCountUp(taskTitle: 'Newest');
+
+    repository.allowActiveLoad!.complete();
+    await Future.wait([loading, starting]);
+
+    expect(repository.active?.taskTitle, 'Newest');
+    expect(controller.activeSession?.taskTitle, 'Newest');
+    expect(repository.loadActiveCalls, 1);
+  });
+
+  test('expired load completes despite focus cancellation failure', () async {
+    repository.active = ActiveFocusSession.countdown(
+      id: 'expired',
+      startedAt: clock.now().subtract(const Duration(minutes: 2)),
+      duration: const Duration(minutes: 1),
+    );
+    notifications.failedCancellationIds.add('expired');
+
+    await controller.load();
+
+    expect(controller.activeSession, isNull);
+    expect(controller.history, hasLength(1));
+    expect(repository.active, isNull);
+    expect(repository.history, hasLength(1));
+    expect(controller.lastWarning?.sessionId, 'expired');
+    expect(controller.lastWarning?.operation, 'cancelFocus');
+  });
+
+  test('overlapping load and resume share one queued read', () async {
+    repository.blockNextActiveLoad();
+
+    final loading = controller.load();
+    await repository.activeLoadStarted!.future;
+    final resumed = controller.handleLifecycleResume();
+    final secondLoad = controller.load();
+
+    expect(identical(loading, secondLoad), isTrue);
+    repository.allowActiveLoad!.complete();
+    await Future.wait([loading, resumed, secondLoad]);
+
+    expect(repository.loadActiveCalls, 1);
+  });
 }
 
 class MutableClock {
@@ -237,6 +290,14 @@ class _MemoryRepository implements TaskRepository {
   Completer<void>? completeStarted;
   Completer<void>? allowComplete;
   bool failNextActiveSave = false;
+  int loadActiveCalls = 0;
+  Completer<void>? activeLoadStarted;
+  Completer<void>? allowActiveLoad;
+
+  void blockNextActiveLoad() {
+    activeLoadStarted = Completer<void>();
+    allowActiveLoad = Completer<void>();
+  }
 
   @override
   Future<void> completeFocus(
@@ -271,7 +332,16 @@ class _MemoryRepository implements TaskRepository {
   ) async => loadSnapshot();
 
   @override
-  Future<ActiveFocusSession?> loadActiveFocus() async => active;
+  Future<ActiveFocusSession?> loadActiveFocus() async {
+    loadActiveCalls += 1;
+    final snapshot = active;
+    activeLoadStarted?.complete();
+    final allow = allowActiveLoad;
+    if (allow != null) await allow.future;
+    activeLoadStarted = null;
+    allowActiveLoad = null;
+    return snapshot;
+  }
 
   @override
   Future<List<FocusSession>> loadFocusHistory() async => List.of(history);
@@ -321,6 +391,7 @@ class _FocusNotifications
         FocusNotificationCoordinatorContract {
   final List<String> scheduled = [];
   final List<String> cancelled = [];
+  final Set<String> failedCancellationIds = {};
 
   @override
   Stream<NotificationAction> get actions => const Stream.empty();
@@ -331,6 +402,9 @@ class _FocusNotifications
   @override
   Future<void> cancelFocus(String sessionId) async {
     cancelled.add(sessionId);
+    if (failedCancellationIds.contains(sessionId)) {
+      throw StateError('cancel failed');
+    }
   }
 
   @override

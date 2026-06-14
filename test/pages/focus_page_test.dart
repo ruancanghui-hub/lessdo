@@ -146,6 +146,69 @@ void main() {
     );
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets(
+    'real lifecycle resumes merge load and complete expired session once',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final clock = _MutableClock(DateTime.utc(2026, 6, 13, 8));
+      final repository = _Repository();
+      final store = AppController(
+        repository: repository,
+        settingsRepository: SettingsRepository(
+          await SharedPreferences.getInstance(),
+        ),
+        notifications: _Notifications(),
+        now: clock.now,
+        idFactory: () => 'focus-1',
+      );
+      addTearDown(store.dispose);
+      await store.load();
+      expect(repository.activeLoadCalls, 1);
+      repository.active = ActiveFocusSession.countdown(
+        id: 'expired',
+        startedAt: clock.now().subtract(const Duration(minutes: 2)),
+        duration: const Duration(minutes: 1),
+      );
+      repository.blockNextActiveLoad();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: FocusPage(store: store)),
+        ),
+      );
+
+      try {
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await tester.runAsync(() => repository.activeLoadStarted!.future);
+
+        expect(repository.activeLoadCalls, 2);
+        repository.allowActiveLoad!.complete();
+        await tester.runAsync(
+          () => _waitUntil(
+            () =>
+                repository.history.length == 1 &&
+                !store.focusController.isMutating,
+          ),
+        );
+        await tester.pump();
+
+        expect(store.activeFocus, isNull);
+        expect(store.focusHistory, hasLength(1));
+        expect(repository.history, hasLength(1));
+      } finally {
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    },
+  );
 }
 
 class _Repository implements TaskRepository {
@@ -158,10 +221,18 @@ class _Repository implements TaskRepository {
   bool failNextActiveSave = false;
   Completer<void>? completeStarted;
   Completer<void>? allowComplete;
+  int activeLoadCalls = 0;
+  Completer<void>? activeLoadStarted;
+  Completer<void>? allowActiveLoad;
 
   void blockNextComplete() {
     completeStarted = Completer<void>();
     allowComplete = Completer<void>();
+  }
+
+  void blockNextActiveLoad() {
+    activeLoadStarted = Completer<void>();
+    allowActiveLoad = Completer<void>();
   }
 
   @override
@@ -186,7 +257,16 @@ class _Repository implements TaskRepository {
   ) async => loadSnapshot();
 
   @override
-  Future<ActiveFocusSession?> loadActiveFocus() async => active;
+  Future<ActiveFocusSession?> loadActiveFocus() async {
+    activeLoadCalls += 1;
+    final snapshot = active;
+    activeLoadStarted?.complete();
+    final allow = allowActiveLoad;
+    if (allow != null) await allow.future;
+    activeLoadStarted = null;
+    allowActiveLoad = null;
+    return snapshot;
+  }
 
   @override
   Future<List<FocusSession>> loadFocusHistory() async => List.of(history);

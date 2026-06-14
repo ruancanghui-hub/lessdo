@@ -309,6 +309,28 @@ void main() {
     },
   );
 
+  test('app load succeeds when expired focus cancellation fails', () async {
+    final repository = _MemoryTaskRepository();
+    await repository.saveActiveFocus(
+      ActiveFocusSession.countdown(
+        id: 'expired',
+        startedAt: DateTime.utc(2025, 12, 31, 23, 58),
+        duration: const Duration(minutes: 1),
+      ),
+    );
+    final notifications = _FakeNotificationCoordinator()
+      ..failedFocusCancellationIds.add('expired');
+
+    final controller = await _controller(
+      repository: repository,
+      notifications: notifications,
+    );
+
+    expect(controller.activeFocus, isNull);
+    expect(controller.focusHistory, hasLength(1));
+    expect(controller.focusController.lastWarning?.sessionId, 'expired');
+  });
+
   test(
     'task and list mutations serialize without orphaning reminders',
     () async {
@@ -731,11 +753,15 @@ class _MemoryTaskRepository implements TaskRepository {
   );
 }
 
-class _FakeNotificationCoordinator implements NotificationCoordinatorContract {
+class _FakeNotificationCoordinator
+    implements
+        NotificationCoordinatorContract,
+        FocusNotificationCoordinatorContract {
   bool failSchedule = false;
   bool permissionGranted = true;
   int permissionRequests = 0;
   final Set<String> failedCancellationIds = {};
+  final Set<String> failedFocusCancellationIds = {};
   final List<String> scheduledTaskIds = [];
   final List<String> cancelledTaskIds = [];
   final List<String> snoozedTaskIds = [];
@@ -757,6 +783,13 @@ class _FakeNotificationCoordinator implements NotificationCoordinatorContract {
     cancelledTaskIds.add(taskId);
     if (failedCancellationIds.contains(taskId)) {
       throw StateError('cancel failed');
+    }
+  }
+
+  @override
+  Future<void> cancelFocus(String sessionId) async {
+    if (failedFocusCancellationIds.contains(sessionId)) {
+      throw StateError('focus cancel failed');
     }
   }
 
@@ -784,6 +817,12 @@ class _FakeNotificationCoordinator implements NotificationCoordinatorContract {
     if (failSchedule) throw StateError('schedule failed');
     return ReminderScheduleStatus.scheduled;
   }
+
+  @override
+  Future<void> scheduleFocus(
+    ActiveFocusSession session, {
+    bool requestPermission = true,
+  }) async {}
 
   @override
   Future<ReminderScheduleStatus> snooze(TaskItem task) async {

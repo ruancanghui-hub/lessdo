@@ -10,6 +10,19 @@ import '../notifications/notification_coordinator.dart';
 
 typedef FocusCompletionCallback =
     Future<void> Function(FocusSession history, String? completedTaskId);
+typedef FocusWarningCallback = void Function(FocusSessionWarning warning);
+
+class FocusSessionWarning {
+  const FocusSessionWarning({
+    required this.operation,
+    required this.sessionId,
+    required this.cause,
+  });
+
+  final String operation;
+  final String sessionId;
+  final Object cause;
+}
 
 class FocusSessionController extends ChangeNotifier {
   FocusSessionController({
@@ -18,17 +31,20 @@ class FocusSessionController extends ChangeNotifier {
     DateTime Function()? clock,
     String Function()? idFactory,
     FocusCompletionCallback? onCompleted,
+    FocusWarningCallback? onWarning,
   }) : _repository = repository,
        _notifications = notifications,
        _clock = clock ?? DateTime.now,
        _idFactory = idFactory ?? const Uuid().v4,
-       _onCompleted = onCompleted;
+       _onCompleted = onCompleted,
+       _onWarning = onWarning;
 
   final TaskRepository _repository;
   final FocusNotificationCoordinatorContract _notifications;
   final DateTime Function() _clock;
   final String Function() _idFactory;
   final FocusCompletionCallback? _onCompleted;
+  final FocusWarningCallback? _onWarning;
 
   ActiveFocusSession? _activeSession;
   List<FocusSession> _history = const [];
@@ -37,6 +53,7 @@ class FocusSessionController extends ChangeNotifier {
   Future<FocusSession?>? _completionFuture;
   String? _lastCompletedSessionId;
   int _pendingMutations = 0;
+  FocusSessionWarning? _lastWarning;
 
   ActiveFocusSession? get activeSession => _activeSession;
   List<FocusSession> get history => _history;
@@ -46,6 +63,7 @@ class FocusSessionController extends ChangeNotifier {
   bool get isCompleting => _completionFuture != null;
   bool get isMutating => _pendingMutations > 0;
   String? get lastCompletedSessionId => _lastCompletedSessionId;
+  FocusSessionWarning? get lastWarning => _lastWarning;
 
   Duration get elapsed => _activeSession?.elapsedAt(_clock()) ?? Duration.zero;
 
@@ -53,7 +71,19 @@ class FocusSessionController extends ChangeNotifier {
       _activeSession?.remainingAt(_clock()) ?? Duration.zero;
 
   Future<void> load() {
-    return _loadFuture ??= _load().whenComplete(() => _loadFuture = null);
+    final active = _loadFuture;
+    if (active != null) return active;
+    final future = _enqueue(_load);
+    _loadFuture = future;
+    future.then(
+      (_) => _clearLoad(future),
+      onError: (_, _) => _clearLoad(future),
+    );
+    return future;
+  }
+
+  void _clearLoad(Future<void> future) {
+    if (identical(_loadFuture, future)) _loadFuture = null;
   }
 
   Future<void> _load() async {
@@ -67,7 +97,7 @@ class FocusSessionController extends ChangeNotifier {
     final session = _activeSession;
     if (session == null) return;
     if (_isExpired(session)) {
-      await complete();
+      await _complete(completeTask: false);
     } else if (session.pausedAt == null && session.mode != FocusMode.countUp) {
       await _notifications.scheduleFocus(session, requestPermission: false);
     }
@@ -215,8 +245,24 @@ class FocusSessionController extends ChangeNotifier {
     _history = List.unmodifiable([history, ..._history]);
     notifyListeners();
     await _onCompleted?.call(history, completedTaskId);
-    await _notifications.cancelFocus(session.id);
+    try {
+      await _notifications.cancelFocus(session.id);
+    } catch (error) {
+      _recordWarning(
+        FocusSessionWarning(
+          operation: 'cancelFocus',
+          sessionId: session.id,
+          cause: error,
+        ),
+      );
+    }
     return history;
+  }
+
+  void _recordWarning(FocusSessionWarning warning) {
+    _lastWarning = warning;
+    _onWarning?.call(warning);
+    notifyListeners();
   }
 
   Future<void> refresh() async {
