@@ -67,13 +67,27 @@ class ListDetailPage extends StatelessWidget {
                           ),
                       if (completed.isNotEmpty) ...[
                         const SizedBox(height: 14),
-                        Text(
-                          'Completed · ${completed.length}',
-                          style: const TextStyle(
-                            color: Color(0xFF777981),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Completed · ${completed.length}',
+                                style: const TextStyle(
+                                  color: Color(0xFF777981),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              key: const Key('clear-completed'),
+                              onPressed: () =>
+                                  _confirmClearCompleted(context, list),
+                              child: Text(
+                                AppLocalizations.of(context).clearCompleted,
+                              ),
+                            ),
+                          ],
                         ),
                         for (final task in completed)
                           TaskRow(
@@ -176,6 +190,36 @@ class ListDetailPage extends StatelessWidget {
     if (strategy == null || !context.mounted) return;
     await store.deleteList(list.id, strategy);
     if (context.mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _confirmClearCompleted(
+    BuildContext context,
+    TaskList list,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.clearCompletedTitle),
+        content: Text(l10n.clearCompletedBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              l10n.clearAction,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await store.clearCompletedTasks(listId: list.id);
+    }
   }
 }
 

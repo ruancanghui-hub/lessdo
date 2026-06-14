@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
-import '../models/task_item.dart';
 import '../controllers/app_controller.dart';
+import '../l10n/app_localizations.dart';
+import '../models/task_item.dart';
+import '../widgets/operation_error_banner.dart';
 
 Future<void> showTaskEditor(
   BuildContext context, {
@@ -35,6 +37,8 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
   late final TextEditingController _titleController;
   late final TextEditingController _notesController;
   final _subtaskController = TextEditingController();
+  var _saving = false;
+  String? _saveError;
 
   @override
   void initState() {
@@ -53,17 +57,39 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
   }
 
   Future<void> _save() async {
-    await widget.store.saveTask(
-      _draft.copyWith(
-        title: _titleController.text.trim(),
-        notes: _notesController.text.trim(),
-      ),
-    );
-    if (mounted) Navigator.of(context).pop();
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _saveError = null;
+    });
+    try {
+      await widget.store.saveTask(
+        _draft.copyWith(
+          title: _titleController.text.trim(),
+          notes: _notesController.text.trim(),
+        ),
+      );
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _saveError = AppLocalizations.of(context).couldNotSaveChanges;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _retryReminder() async {
+    await widget.store.retryReminder(_draft.id);
+    if (!mounted) return;
+    setState(() => _draft = widget.store.taskById(_draft.id));
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       constraints: BoxConstraints(
         maxWidth: 520,
@@ -100,7 +126,8 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                   ),
                 ),
                 TextButton(
-                  onPressed: _save,
+                  key: const Key('task-save'),
+                  onPressed: _saving ? null : _save,
                   child: const Text(
                     'Save',
                     style: TextStyle(fontWeight: FontWeight.w700),
@@ -118,7 +145,20 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                 30 + MediaQuery.viewInsetsOf(context).bottom,
               ),
               children: [
+                if (_saveError != null) ...[
+                  OperationErrorBanner(message: _saveError!),
+                  const SizedBox(height: 12),
+                ],
+                if (_draft.reminderSchedulingFailed) ...[
+                  OperationErrorBanner(
+                    message: l10n.reminderSchedulingFailed,
+                    actionLabel: l10n.retry,
+                    onAction: _retryReminder,
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 TextField(
+                  key: const Key('task-title-field'),
                   controller: _titleController,
                   style: const TextStyle(
                     fontSize: 24,

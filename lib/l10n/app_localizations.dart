@@ -290,6 +290,48 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get cancel;
 
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @couldNotSaveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save changes.'**
+  String get couldNotSaveChanges;
+
+  /// No description provided for @reminderSchedulingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder could not be scheduled.'**
+  String get reminderSchedulingFailed;
+
+  /// No description provided for @clearCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear completed'**
+  String get clearCompleted;
+
+  /// No description provided for @clearCompletedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Completed Tasks?'**
+  String get clearCompletedTitle;
+
+  /// No description provided for @clearCompletedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently deletes completed tasks from this list.'**
+  String get clearCompletedBody;
+
+  /// No description provided for @clearAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clearAction;
+
   /// No description provided for @welcomeTitle.
   ///
   /// In en, this message translates to:

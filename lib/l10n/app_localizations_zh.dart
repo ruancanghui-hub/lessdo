@@ -105,6 +105,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cancel => '取消';
 
   @override
+  String get retry => '重试';
+
+  @override
+  String get couldNotSaveChanges => '无法保存更改。';
+
+  @override
+  String get reminderSchedulingFailed => '提醒无法安排。';
+
+  @override
+  String get clearCompleted => '清除已完成';
+
+  @override
+  String get clearCompletedTitle => '清除已完成任务？';
+
+  @override
+  String get clearCompletedBody => '这会永久删除此清单中已完成的任务。';
+
+  @override
+  String get clearAction => '清除';
+
+  @override
   String get welcomeTitle => '欢迎使用 LessDo';
 
   @override

@@ -13,9 +13,13 @@ import 'package:lessdo/notifications/notification_coordinator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class WorkflowHarness {
-  WorkflowHarness._({required this.controller});
+  WorkflowHarness._({
+    required this.controller,
+    required _MemoryRepository repository,
+  }) : _repository = repository;
 
   final AppController controller;
+  final _MemoryRepository _repository;
 
   LessDoApp get widget => LessDoApp(store: controller);
 
@@ -45,8 +49,10 @@ class WorkflowHarness {
       now: () => DateTime.utc(2026, 6, 14, 9),
     );
     await controller.load();
-    return WorkflowHarness._(controller: controller);
+    return WorkflowHarness._(controller: controller, repository: repository);
   }
+
+  void failNextTaskSave() => _repository.failNextTaskSave = true;
 
   Future<void> dispose() async => controller.dispose();
 }
@@ -65,6 +71,7 @@ class _MemoryRepository implements TaskRepository {
   final List<TaskItem> tasks;
   final List<FocusSession> history = [];
   ActiveFocusSession? activeFocus;
+  bool failNextTaskSave = false;
 
   @override
   Future<void> completeFocus(
@@ -159,6 +166,10 @@ class _MemoryRepository implements TaskRepository {
 
   @override
   Future<void> saveTask(TaskItem task) async {
+    if (failNextTaskSave) {
+      failNextTaskSave = false;
+      throw StateError('save failed');
+    }
     final index = tasks.indexWhere((item) => item.id == task.id);
     if (index == -1) {
       tasks.add(task);

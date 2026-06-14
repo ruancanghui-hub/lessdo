@@ -318,6 +318,28 @@ class AppController extends ChangeNotifier {
     await _cancelWithWarning('deleteTaskReminder', [id]);
   }
 
+  Future<void> clearCompletedTasks({String? listId}) =>
+      _enqueueMutation(() => _clearCompletedTasks(listId: listId));
+
+  Future<void> _clearCompletedTasks({String? listId}) async {
+    final completedIds = _tasks
+        .where(
+          (task) => task.completed && (listId == null || task.listId == listId),
+        )
+        .map((task) => task.id)
+        .toList();
+    if (completedIds.isEmpty) return;
+    for (final taskId in completedIds) {
+      await _write('clearCompletedTasks', () => _repository.deleteTask(taskId));
+    }
+    final removed = completedIds.toSet();
+    _tasks = List.unmodifiable(
+      _tasks.where((task) => !removed.contains(task.id)),
+    );
+    notifyListeners();
+    await _cancelWithWarning('clearCompletedReminders', completedIds);
+  }
+
   Future<TaskList> addList({
     required String name,
     required int colorValue,

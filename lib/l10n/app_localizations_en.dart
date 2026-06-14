@@ -107,6 +107,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cancel => 'Cancel';
 
   @override
+  String get retry => 'Retry';
+
+  @override
+  String get couldNotSaveChanges => 'Could not save changes.';
+
+  @override
+  String get reminderSchedulingFailed => 'Reminder could not be scheduled.';
+
+  @override
+  String get clearCompleted => 'Clear completed';
+
+  @override
+  String get clearCompletedTitle => 'Clear Completed Tasks?';
+
+  @override
+  String get clearCompletedBody =>
+      'This permanently deletes completed tasks from this list.';
+
+  @override
+  String get clearAction => 'Clear';
+
+  @override
   String get welcomeTitle => 'Welcome to LessDo';
 
   @override

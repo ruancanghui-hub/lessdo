@@ -40,4 +40,41 @@ void main() {
     expect(find.text('Delete Tasks'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
   });
+
+  testWidgets('clearing completed tasks requires confirmation', (tester) async {
+    const work = TaskList(id: 'work', name: 'Work', colorValue: 0xFF2E7BF6);
+    final harness = await WorkflowHarness.create(
+      lists: const [work],
+      tasks: [
+        TaskItem.create(
+          id: 'done',
+          title: 'Archived task',
+          listId: work.id,
+          createdAt: DateTime.utc(2026, 6, 14),
+        ).copyWith(completed: true, completedAt: DateTime.utc(2026, 6, 14, 10)),
+      ],
+    );
+    addTearDown(harness.dispose);
+
+    await tester.pumpWidget(harness.widget);
+    await tester.pump();
+    await tester.tap(find.text('Lists'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Work'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byKey(const Key('clear-completed')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Clear Completed Tasks?'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(find.text('Clear'), findsOneWidget);
+    expect(harness.controller.tasks, hasLength(1));
+
+    await tester.tap(find.text('Clear'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(harness.controller.tasks, isEmpty);
+  });
 }
