@@ -1,5 +1,32 @@
 # LessDo 1.0 App Store Release Checklist
 
+## Software Release Candidate Verification
+
+Verified on June 14, 2026:
+
+- [x] Dart formatting and localization generation complete.
+- [x] Flutter analysis reports no issues.
+- [x] Unit and widget suite passes, including iPad accessibility text and
+  dark-theme quick-add contrast regressions.
+- [x] Four end-to-end simulator journeys pass with real SQLite persistence.
+- [x] iPhone 17 Pro on iOS 26.5 launches, completes onboarding, creates and
+  completes a task, and restores state.
+- [x] iPad Pro 13-inch (M5) on iOS 26.5 launches with adaptive navigation and
+  readable portrait layout.
+- [x] iPad dark mode at the largest accessibility text size keeps the date
+  visible and the quick-add field readable.
+- [x] Unsigned iOS Release build succeeds and produces a 20.6 MB app bundle.
+- [x] Release bundle reports version `1.0.0` build `1`, minimum iOS `16.0`,
+  iPhone/iPad support, and English/Simplified Chinese localizations.
+- [x] Release bundle contains the app and plugin privacy manifests, declares
+  no tracking or collected data, and contains no forbidden upgrade/cloud
+  marketing strings or `example.com`.
+- [ ] Manually verify iPad landscape after Codex Computer Use receives macOS
+  Accessibility and Screen Recording permission.
+
+This is a software release candidate, not yet ready to submit. Every publisher
+and physical-device gate below must pass first.
+
 ## Submission Blockers
 
 - [ ] **PUBLISHER REQUIRED:** replace the support email and privacy URL
@@ -29,10 +56,11 @@ Do not submit while any item above remains incomplete.
 
 ## Build And Compliance
 
+- [x] Unsigned Release app uses iOS 16.0 as the minimum deployment target.
+- [x] `PrivacyInfo.xcprivacy` is present in the unsigned Runner app bundle.
+- [x] Only `NSFaceIDUsageDescription` is present among protected-resource
+  usage descriptions in the unsigned Runner app.
 - [ ] Release archive uses iOS 16.0 as the minimum deployment target.
-- [ ] `PrivacyInfo.xcprivacy` is present in the Runner app bundle.
-- [ ] Only `NSFaceIDUsageDescription` is present among protected-resource
-  usage descriptions.
 - [ ] Encryption/export-compliance answers are reviewed against the final
   archive; LessDo contains no custom encryption.
 - [ ] Archive validation reports no privacy-manifest or required-reason API
@@ -57,7 +85,8 @@ Do not submit while any item above remains incomplete.
 
 ## Final Evidence
 
-- [ ] Test device models and OS versions recorded.
+- [x] Simulator models and OS versions recorded above.
+- [ ] Physical test device models and OS versions recorded.
 - [ ] TestFlight build number recorded.
 - [ ] Archive validation log retained.
 - [ ] App Store screenshots reviewed against the submitted build.
