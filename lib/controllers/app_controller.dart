@@ -13,6 +13,7 @@ import '../models/task_item.dart';
 import '../models/task_list.dart';
 import '../notifications/notification_coordinator.dart';
 import '../services/platform_coordinators.dart';
+import 'focus_session_controller.dart';
 
 class RepositoryReadException implements Exception {
   RepositoryReadException(this.operation, this.cause);
@@ -76,6 +77,15 @@ class AppController extends ChangeNotifier {
        _sharing = sharing ?? const _UnavailableSharing(),
        _now = now ?? DateTime.now,
        _idFactory = idFactory ?? const Uuid().v4 {
+    focusController = FocusSessionController(
+      repository: repository,
+      notifications: notifications is FocusNotificationCoordinatorContract
+          ? notifications as FocusNotificationCoordinatorContract
+          : const _UnavailableFocusNotifications(),
+      clock: _now,
+      idFactory: _idFactory,
+      onCompleted: _applyFocusCompletion,
+    )..addListener(_syncFocusState);
     _notificationSubscription = _notifications.actions.listen(
       (action) => unawaited(handleNotificationAction(action)),
     );
@@ -100,6 +110,7 @@ class AppController extends ChangeNotifier {
       StreamController<String>.broadcast();
   String? _pendingOpenTaskId;
   late final StreamSubscription<NotificationAction> _notificationSubscription;
+  late final FocusSessionController focusController;
 
   List<TaskList> get lists => _lists;
 
@@ -139,14 +150,12 @@ class AppController extends ChangeNotifier {
     try {
       final values = await Future.wait<Object?>([
         _repository.loadSnapshot(),
-        _repository.loadFocusHistory(),
-        _repository.loadActiveFocus(),
         _settingsRepository.load(),
+        focusController.load(),
       ]);
       _publishSnapshot(values[0]! as RepositorySnapshot);
-      _sessions = List.unmodifiable(values[1]! as List<FocusSession>);
-      _activeFocus = values[2] as ActiveFocusSession?;
-      _settings = values[3]! as AppSettings;
+      _syncFocusState(notify: false);
+      _settings = values[1]! as AppSettings;
       await reconcileReminders();
       notifyListeners();
       final launchAction = await _notifications.launchAction();
@@ -454,6 +463,31 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  void _applyFocusCompletion(FocusSession history, String? completedTaskId) {
+    if (completedTaskId == null) return;
+    _tasks = List.unmodifiable([
+      for (final task in _tasks)
+        if (task.id == completedTaskId)
+          task.copyWith(
+            completed: true,
+            completedAt: history.completedAt,
+            updatedAt: history.completedAt,
+          )
+        else
+          task,
+    ]);
+  }
+
+  void _syncFocusState({bool notify = true}) {
+    final active = focusController.activeSession;
+    final history = focusController.history;
+    final changed =
+        !identical(_activeFocus, active) || !identical(_sessions, history);
+    _activeFocus = active;
+    _sessions = history;
+    if (notify && changed) notifyListeners();
+  }
+
   Future<void> addSession({
     required String title,
     required FocusMode mode,
@@ -689,6 +723,8 @@ class AppController extends ChangeNotifier {
 
   @override
   void dispose() {
+    focusController.removeListener(_syncFocusState);
+    focusController.dispose();
     unawaited(_notificationSubscription.cancel());
     unawaited(_openTaskRequestController.close());
     unawaited(_notifications.dispose());
@@ -703,6 +739,20 @@ class AppController extends ChangeNotifier {
       });
     return List.unmodifiable(sorted);
   }
+}
+
+class _UnavailableFocusNotifications
+    implements FocusNotificationCoordinatorContract {
+  const _UnavailableFocusNotifications();
+
+  @override
+  Future<void> cancelFocus(String sessionId) async {}
+
+  @override
+  Future<void> scheduleFocus(
+    ActiveFocusSession session, {
+    bool requestPermission = true,
+  }) async {}
 }
 
 class _UnavailableAuthentication implements AuthenticationCoordinator {

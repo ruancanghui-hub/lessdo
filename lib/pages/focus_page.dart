@@ -17,12 +17,10 @@ class FocusPage extends StatefulWidget {
   State<FocusPage> createState() => _FocusPageState();
 }
 
-class _FocusPageState extends State<FocusPage> {
+class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
   FocusMode _mode = FocusMode.pomodoro;
   String? _taskId;
-  var _seconds = 25 * 60;
-  var _running = false;
-  Timer? _timer;
+  Timer? _displayTimer;
 
   @override
   void initState() {
@@ -31,11 +29,21 @@ class _FocusPageState extends State<FocusPage> {
         .where((task) => !task.completed)
         .toList();
     _taskId = widget.initialTaskId ?? available.firstOrNull?.id;
+    widget.store.focusController.addListener(_handleFocusChanged);
+    WidgetsBinding.instance.addObserver(this);
+    _displayTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => unawaited(widget.store.focusController.refresh()),
+    );
   }
 
   @override
   void didUpdateWidget(covariant FocusPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.store != widget.store) {
+      oldWidget.store.focusController.removeListener(_handleFocusChanged);
+      widget.store.focusController.addListener(_handleFocusChanged);
+    }
     if (widget.initialTaskId != null &&
         widget.initialTaskId != oldWidget.initialTaskId) {
       _taskId = widget.initialTaskId;
@@ -43,18 +51,34 @@ class _FocusPageState extends State<FocusPage> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(widget.store.focusController.handleLifecycleResume());
+    }
+  }
+
+  @override
   void dispose() {
-    _timer?.cancel();
+    widget.store.focusController.removeListener(_handleFocusChanged);
+    WidgetsBinding.instance.removeObserver(this);
+    _displayTimer?.cancel();
     super.dispose();
   }
 
-  int get _baseSeconds => switch (_mode) {
+  void _handleFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  int get _baseSeconds => switch (_currentMode) {
     FocusMode.pomodoro => 25 * 60,
     FocusMode.countdown => 10 * 60,
     FocusMode.countUp => 0,
   };
 
-  String get _modeLabel => switch (_mode) {
+  FocusMode get _currentMode =>
+      widget.store.focusController.activeSession?.mode ?? _mode;
+
+  String get _modeLabel => switch (_currentMode) {
     FocusMode.pomodoro => '25 min focus',
     FocusMode.countdown => '10 min timer',
     FocusMode.countUp => 'Open session',
@@ -62,6 +86,13 @@ class _FocusPageState extends State<FocusPage> {
 
   @override
   Widget build(BuildContext context) {
+    final focus = widget.store.focusController;
+    final mode = _currentMode;
+    final seconds = mode == FocusMode.countUp
+        ? focus.elapsed.inSeconds
+        : focus.activeSession == null
+        ? _baseSeconds
+        : focus.remaining.inSeconds;
     final tasks = widget.store.tasks.where((task) => !task.completed).toList();
     if (_taskId != null && tasks.every((task) => task.id != _taskId)) {
       _taskId = tasks.firstOrNull?.id;
@@ -75,7 +106,10 @@ class _FocusPageState extends State<FocusPage> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(22, 10, 22, 22),
             children: [
-              _ModeSelector(mode: _mode, onChanged: _changeMode),
+              _ModeSelector(
+                mode: mode,
+                onChanged: focus.activeSession == null ? _changeMode : null,
+              ),
               const SizedBox(height: 25),
               const Text(
                 'Working on',
@@ -102,12 +136,14 @@ class _FocusPageState extends State<FocusPage> {
                       child: Text(task.title, overflow: TextOverflow.ellipsis),
                     ),
                 ],
-                onChanged: (value) => setState(() => _taskId = value),
+                onChanged: focus.activeSession == null
+                    ? (value) => setState(() => _taskId = value)
+                    : null,
               ),
               const SizedBox(height: 28),
               Center(
                 child: AnimatedScale(
-                  scale: _running ? 1.02 : 1,
+                  scale: focus.isRunning ? 1.02 : 1,
                   duration: const Duration(milliseconds: 180),
                   child: Container(
                     width: 224,
@@ -137,7 +173,7 @@ class _FocusPageState extends State<FocusPage> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              _formatTime(_seconds),
+                              _formatTime(seconds),
                               style: const TextStyle(
                                 fontSize: 47,
                                 height: 1,
@@ -172,13 +208,19 @@ class _FocusPageState extends State<FocusPage> {
                       shape: const StadiumBorder(),
                     ),
                     child: Text(
-                      _running ? 'Pause' : 'Start',
+                      focus.isRunning
+                          ? 'Pause'
+                          : focus.isPaused
+                          ? 'Resume'
+                          : 'Start',
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
                   const SizedBox(width: 10),
                   OutlinedButton(
-                    onPressed: _reset,
+                    onPressed: focus.activeSession == null
+                        ? null
+                        : () => unawaited(focus.reset()),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(78, 48),
                       shape: const StadiumBorder(),
@@ -187,9 +229,20 @@ class _FocusPageState extends State<FocusPage> {
                   ),
                 ],
               ),
+              if (focus.activeSession != null)
+                TextButton(
+                  onPressed: focus.isCompleting
+                      ? null
+                      : () => unawaited(focus.complete()),
+                  child: const Text('End session'),
+                ),
               if (selected != null)
                 TextButton.icon(
-                  onPressed: () => widget.store.toggleTask(selected.id),
+                  onPressed:
+                      focus.activeSession?.taskId == selected.id &&
+                          !focus.isCompleting
+                      ? () => unawaited(focus.complete(completeTask: true))
+                      : null,
                   icon: const Icon(CupertinoIcons.check_mark),
                   label: Text('Complete “${selected.title}”'),
                   style: TextButton.styleFrom(
@@ -218,7 +271,7 @@ class _FocusPageState extends State<FocusPage> {
                         ),
                         const Spacer(),
                         Text(
-                          '${widget.store.sessions.fold<int>(0, (sum, item) => sum + item.minutes)} min',
+                          '${focus.history.fold<int>(0, (sum, item) => sum + item.minutes)} min',
                           style: const TextStyle(
                             color: Color(0xFF8B8E96),
                             fontSize: 12,
@@ -226,7 +279,7 @@ class _FocusPageState extends State<FocusPage> {
                         ),
                       ],
                     ),
-                    if (widget.store.sessions.isEmpty)
+                    if (focus.history.isEmpty)
                       const Padding(
                         padding: EdgeInsets.only(top: 14),
                         child: Align(
@@ -241,7 +294,7 @@ class _FocusPageState extends State<FocusPage> {
                         ),
                       )
                     else
-                      for (final session in widget.store.sessions.take(4))
+                      for (final session in focus.history.take(4))
                         Container(
                           height: 49,
                           decoration: BoxDecoration(
@@ -286,56 +339,39 @@ class _FocusPageState extends State<FocusPage> {
   }
 
   void _changeMode(FocusMode value) {
-    _timer?.cancel();
-    setState(() {
-      _mode = value;
-      _seconds = _baseSeconds;
-      _running = false;
-    });
+    setState(() => _mode = value);
   }
 
-  void _toggleTimer() {
-    if (_running) {
-      _timer?.cancel();
-      setState(() => _running = false);
+  Future<void> _toggleTimer() async {
+    final focus = widget.store.focusController;
+    if (focus.isRunning) {
+      await focus.pause();
       return;
     }
-
-    setState(() => _running = true);
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() {
-        if (_mode == FocusMode.countUp) {
-          _seconds += 1;
-        } else if (_seconds > 0) {
-          _seconds -= 1;
-        }
-      });
-      if (_mode != FocusMode.countUp && _seconds == 0) {
-        _finishSession();
-      }
-    });
-  }
-
-  Future<void> _finishSession() async {
-    _timer?.cancel();
-    setState(() => _running = false);
+    if (focus.isPaused) {
+      await focus.resume();
+      return;
+    }
     final selected = widget.store.tasks
         .where((task) => task.id == _taskId)
         .firstOrNull;
-    await widget.store.addSession(
-      title: selected?.title ?? 'Open focus session',
-      mode: _mode,
-      durationSeconds: _mode == FocusMode.countUp ? _seconds : _baseSeconds,
-    );
-  }
-
-  void _reset() {
-    _timer?.cancel();
-    setState(() {
-      _running = false;
-      _seconds = _baseSeconds;
-    });
+    final taskTitle = selected?.title ?? 'Open focus session';
+    switch (_mode) {
+      case FocusMode.pomodoro:
+        await focus.startPomodoro(
+          const Duration(minutes: 25),
+          taskId: selected?.id,
+          taskTitle: taskTitle,
+        );
+      case FocusMode.countdown:
+        await focus.startCountdown(
+          const Duration(minutes: 10),
+          taskId: selected?.id,
+          taskTitle: taskTitle,
+        );
+      case FocusMode.countUp:
+        await focus.startCountUp(taskId: selected?.id, taskTitle: taskTitle);
+    }
   }
 
   String _formatTime(int seconds) {
@@ -349,7 +385,7 @@ class _ModeSelector extends StatelessWidget {
   const _ModeSelector({required this.mode, required this.onChanged});
 
   final FocusMode mode;
-  final ValueChanged<FocusMode> onChanged;
+  final ValueChanged<FocusMode>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -370,7 +406,7 @@ class _ModeSelector extends StatelessWidget {
           for (final item in labels.entries)
             Expanded(
               child: InkWell(
-                onTap: () => onChanged(item.key),
+                onTap: onChanged == null ? null : () => onChanged!(item.key),
                 borderRadius: BorderRadius.circular(6),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),

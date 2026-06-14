@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:timezone/timezone.dart' as tz;
 
 import '../data/task_repository.dart';
+import '../models/active_focus_session.dart';
 import '../models/task_item.dart';
 import 'reminder_schedule.dart';
 
@@ -94,6 +95,14 @@ abstract interface class NotificationCoordinatorContract {
   Future<void> dispose();
 }
 
+abstract interface class FocusNotificationCoordinatorContract {
+  Future<void> scheduleFocus(
+    ActiveFocusSession session, {
+    bool requestPermission = true,
+  });
+  Future<void> cancelFocus(String sessionId);
+}
+
 class NotificationReconcileReport {
   NotificationReconcileReport({
     required Iterable<String> cancelledOrphanTaskIds,
@@ -117,7 +126,10 @@ class NotificationReconcileReport {
       List.unmodifiable(values.toSet().toList()..sort());
 }
 
-class NotificationCoordinator implements NotificationCoordinatorContract {
+class NotificationCoordinator
+    implements
+        NotificationCoordinatorContract,
+        FocusNotificationCoordinatorContract {
   NotificationCoordinator({
     required NotificationPlatform platform,
     required TaskRepository repository,
@@ -203,6 +215,49 @@ class NotificationCoordinator implements NotificationCoordinatorContract {
       }
     }
     if (firstError != null) throw firstError;
+  }
+
+  @override
+  Future<void> scheduleFocus(
+    ActiveFocusSession session, {
+    bool requestPermission = true,
+  }) async {
+    final targetAt = session.targetAt;
+    if (targetAt == null || session.pausedAt != null) return;
+    var permission = await _platform.getPermissionStatus();
+    if (permission == NotificationPermissionStatus.notDetermined &&
+        requestPermission) {
+      permission = await _platform.requestPermission();
+    }
+    if (permission != NotificationPermissionStatus.granted) {
+      return;
+    }
+    await _refreshLocation();
+    final id = stableNotificationId(NotificationIdNamespace.focus, session.id);
+    await _platform.schedule(
+      ScheduledNotification(
+        id: id,
+        taskId: session.id,
+        title: 'Focus complete',
+        body: session.taskTitle.isEmpty
+            ? 'Your focus session is complete.'
+            : 'Focus session for ${session.taskTitle} is complete.',
+        payload: jsonEncode({
+          'version': 1,
+          'type': 'focus',
+          'sessionId': session.id,
+        }),
+        scheduledDate: tz.TZDateTime.from(targetAt, _location),
+        repeatRule: RepeatRule.none,
+      ),
+    );
+  }
+
+  @override
+  Future<void> cancelFocus(String sessionId) {
+    return _platform.cancel(
+      stableNotificationId(NotificationIdNamespace.focus, sessionId),
+    );
   }
 
   @override

@@ -45,6 +45,46 @@ void main() {
     expect(await coordinator.launchAction(), isNull);
   });
 
+  test('focus schedule requests permission and reuses its stable id', () async {
+    final location = tz.getLocation('Asia/Shanghai');
+    final platform = _FakeNotificationPlatform()
+      ..requestedStatuses.add(NotificationPermissionStatus.granted);
+    final coordinator = _coordinator(platform: platform, location: location);
+    final session = ActiveFocusSession.pomodoro(
+      id: 'focus-1',
+      startedAt: DateTime.utc(2026, 6, 13, 8),
+      duration: const Duration(minutes: 25),
+      taskTitle: 'Write tests',
+    );
+
+    await coordinator.scheduleFocus(session);
+    await coordinator.cancelFocus(session.id);
+
+    final expectedId = stableNotificationId(
+      NotificationIdNamespace.focus,
+      session.id,
+    );
+    expect(platform.permissionRequests, 1);
+    expect(platform.scheduled.single.id, expectedId);
+    expect(platform.scheduled.single.scheduledDate.toUtc(), session.targetAt);
+    expect(platform.cancelledIds, [expectedId]);
+  });
+
+  test('restored focus schedule does not prompt for permission', () async {
+    final platform = _FakeNotificationPlatform();
+    final coordinator = _coordinator(platform: platform);
+    final session = ActiveFocusSession.pomodoro(
+      id: 'focus-1',
+      startedAt: DateTime.utc(2026, 6, 13, 8),
+      duration: const Duration(minutes: 25),
+    );
+
+    await coordinator.scheduleFocus(session, requestPermission: false);
+
+    expect(platform.permissionRequests, 0);
+    expect(platform.scheduled, isEmpty);
+  });
+
   test(
     'global monthly planner gives every task a first slot within 64',
     () async {
