@@ -87,6 +87,7 @@ class FocusSessionController extends ChangeNotifier {
   }
 
   Future<void> _load() async {
+    await _retryWarningCleanup();
     final values = await Future.wait<Object?>([
       _repository.loadActiveFocus(),
       _repository.loadFocusHistory(),
@@ -99,7 +100,9 @@ class FocusSessionController extends ChangeNotifier {
     if (_isExpired(session)) {
       await _complete(completeTask: false);
     } else if (session.pausedAt == null && session.mode != FocusMode.countUp) {
-      await _notifications.scheduleFocus(session, requestPermission: false);
+      await _scheduleFocusSafely(session, requestPermission: false);
+    } else {
+      await _cancelFocusSafely(session.id);
     }
   }
 
@@ -150,13 +153,13 @@ class FocusSessionController extends ChangeNotifier {
     return _enqueue(() async {
       final previous = _activeSession;
       if (previous != null) {
-        await _notifications.cancelFocus(previous.id);
+        await _cancelFocusSafely(previous.id);
       }
       await _repository.saveActiveFocus(session);
       _activeSession = session;
       notifyListeners();
       if (session.mode != FocusMode.countUp) {
-        await _notifications.scheduleFocus(session);
+        await _scheduleFocusSafely(session);
       }
     });
   }
@@ -169,7 +172,7 @@ class FocusSessionController extends ChangeNotifier {
       await _repository.saveActiveFocus(paused);
       _activeSession = paused;
       notifyListeners();
-      await _notifications.cancelFocus(session.id);
+      await _cancelFocusSafely(session.id);
     });
   }
 
@@ -182,7 +185,7 @@ class FocusSessionController extends ChangeNotifier {
       _activeSession = resumed;
       notifyListeners();
       if (resumed.mode != FocusMode.countUp) {
-        await _notifications.scheduleFocus(resumed);
+        await _scheduleFocusSafely(resumed);
       }
     });
   }
@@ -196,7 +199,7 @@ class FocusSessionController extends ChangeNotifier {
       await _repository.saveActiveFocus(null);
       _activeSession = null;
       notifyListeners();
-      await _notifications.cancelFocus(session.id);
+      await _cancelFocusSafely(session.id);
     });
   }
 
@@ -245,18 +248,65 @@ class FocusSessionController extends ChangeNotifier {
     _history = List.unmodifiable([history, ..._history]);
     notifyListeners();
     await _onCompleted?.call(history, completedTaskId);
+    await _cancelFocusSafely(session.id);
+    return history;
+  }
+
+  Future<void> _scheduleFocusSafely(
+    ActiveFocusSession session, {
+    bool requestPermission = true,
+  }) async {
     try {
-      await _notifications.cancelFocus(session.id);
+      await _notifications.scheduleFocus(
+        session,
+        requestPermission: requestPermission,
+      );
+      _clearWarningFor('scheduleFocus', session.id);
     } catch (error) {
       _recordWarning(
         FocusSessionWarning(
-          operation: 'cancelFocus',
+          operation: 'scheduleFocus',
           sessionId: session.id,
           cause: error,
         ),
       );
     }
-    return history;
+  }
+
+  Future<void> _cancelFocusSafely(String sessionId) async {
+    try {
+      await _notifications.cancelFocus(sessionId);
+      _clearWarningFor('cancelFocus', sessionId);
+    } catch (error) {
+      _recordWarning(
+        FocusSessionWarning(
+          operation: 'cancelFocus',
+          sessionId: sessionId,
+          cause: error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _retryWarningCleanup() async {
+    final warning = _lastWarning;
+    if (warning?.operation == 'cancelFocus') {
+      await _cancelFocusSafely(warning!.sessionId);
+    }
+  }
+
+  void _clearWarningFor(String operation, String sessionId) {
+    final warning = _lastWarning;
+    if (warning?.operation == operation && warning?.sessionId == sessionId) {
+      _lastWarning = null;
+      notifyListeners();
+    }
+  }
+
+  void clearWarning() {
+    if (_lastWarning == null) return;
+    _lastWarning = null;
+    notifyListeners();
   }
 
   void _recordWarning(FocusSessionWarning warning) {

@@ -252,6 +252,52 @@ void main() {
     expect(controller.lastWarning?.operation, 'cancelFocus');
   });
 
+  test('running load survives focus scheduling failure', () async {
+    repository.active = ActiveFocusSession.countdown(
+      id: 'running',
+      startedAt: clock.now(),
+      duration: const Duration(minutes: 10),
+    );
+    notifications.failedSchedulingIds.add('running');
+
+    await controller.load();
+
+    expect(controller.activeSession?.id, 'running');
+    expect(controller.isRunning, isTrue);
+    expect(controller.lastWarning?.sessionId, 'running');
+    expect(controller.lastWarning?.operation, 'scheduleFocus');
+  });
+
+  test(
+    'pause and cancel persist despite notification cancellation failure',
+    () async {
+      await controller.startCountdown(const Duration(minutes: 10));
+      final pausedSessionId = controller.activeSession!.id;
+      notifications.failedCancellationIds.add(pausedSessionId);
+
+      await controller.pause();
+
+      expect(controller.isPaused, isTrue);
+      expect(repository.active?.pausedAt, isNotNull);
+      expect(controller.lastWarning?.operation, 'cancelFocus');
+
+      notifications.failedCancellationIds.remove(pausedSessionId);
+      await controller.load();
+      expect(controller.lastWarning, isNull);
+
+      await controller.startCountUp();
+      final cancelledSessionId = controller.activeSession!.id;
+      notifications.failedCancellationIds.add(cancelledSessionId);
+
+      await controller.cancel();
+
+      expect(controller.activeSession, isNull);
+      expect(repository.active, isNull);
+      expect(controller.lastWarning?.sessionId, cancelledSessionId);
+      expect(controller.lastWarning?.operation, 'cancelFocus');
+    },
+  );
+
   test('overlapping load and resume share one queued read', () async {
     repository.blockNextActiveLoad();
 
@@ -391,6 +437,7 @@ class _FocusNotifications
         FocusNotificationCoordinatorContract {
   final List<String> scheduled = [];
   final List<String> cancelled = [];
+  final Set<String> failedSchedulingIds = {};
   final Set<String> failedCancellationIds = {};
 
   @override
@@ -441,6 +488,9 @@ class _FocusNotifications
     bool requestPermission = true,
   }) async {
     scheduled.add(session.id);
+    if (failedSchedulingIds.contains(session.id)) {
+      throw StateError('schedule failed');
+    }
   }
 
   @override
