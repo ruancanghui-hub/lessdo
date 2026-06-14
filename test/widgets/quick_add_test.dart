@@ -5,6 +5,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lessdo/widgets/quick_add.dart';
 
 void main() {
+  testWidgets('dark theme quick add uses readable semantic colors', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(body: QuickAdd(onSubmit: (_) async {})),
+      ),
+    );
+
+    final surface = tester.widget<Container>(
+      find.byKey(const Key('quick-add-surface')),
+    );
+    final decoration = surface.decoration! as BoxDecoration;
+    final textField = tester.widget<TextField>(find.byType(TextField));
+    final background = decoration.color!;
+    final hint = textField.decoration!.hintStyle!.color!;
+
+    expect(_contrastRatio(background, hint), greaterThanOrEqualTo(4.5));
+  });
+
   testWidgets('failed submit keeps input and displays an error', (
     tester,
   ) async {
@@ -86,4 +107,13 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(textController.text, 'Pay bill');
   });
+}
+
+double _contrastRatio(Color first, Color second) {
+  final lighter = first.computeLuminance() > second.computeLuminance()
+      ? first
+      : second;
+  final darker = identical(lighter, first) ? second : first;
+  return (lighter.computeLuminance() + 0.05) /
+      (darker.computeLuminance() + 0.05);
 }

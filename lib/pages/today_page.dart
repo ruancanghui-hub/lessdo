@@ -52,14 +52,13 @@ class TodayPage extends StatelessWidget {
                         DateFormat.yMMMEd(
                           Localizations.localeOf(context).toLanguageTag(),
                         ).format(DateTime.now()),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
                         style: Theme.of(context).textTheme.headlineSmall,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         l10n.thingsLeft(openCount),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Color(0xFF9699A1),

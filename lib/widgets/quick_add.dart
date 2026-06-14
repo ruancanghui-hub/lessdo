@@ -47,7 +47,8 @@ class _QuickAddState extends State<QuickAdd> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = Theme.of(context).colorScheme.primary;
+    final colorScheme = Theme.of(context).colorScheme;
+    final accent = colorScheme.primary;
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
       color: Theme.of(context).scaffoldBackgroundColor,
@@ -55,9 +56,10 @@ class _QuickAddState extends State<QuickAdd> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
+            key: const Key('quick-add-surface'),
             constraints: const BoxConstraints(minHeight: 60),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.74),
+              color: colorScheme.surfaceContainerHighest,
               border: Border.all(color: accent, width: 1.5),
               borderRadius: BorderRadius.circular(27),
             ),
@@ -79,10 +81,14 @@ class _QuickAddState extends State<QuickAdd> {
                       hintText: widget.grocery
                           ? 'Add an item'
                           : 'What needs doing?',
+                      hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
                       border: InputBorder.none,
                       isCollapsed: true,
                     ),
-                    style: const TextStyle(fontSize: 16),
+                    style: TextStyle(
+                      color: colorScheme.onSurface,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
                 if (_controller.text.isNotEmpty)

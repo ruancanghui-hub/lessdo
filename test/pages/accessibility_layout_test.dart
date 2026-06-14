@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 
 import '../support/workflow_harness.dart';
 
@@ -38,6 +40,28 @@ void main() {
     await tester.pumpWidget(harness.widget);
     await tester.pump();
 
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('accessibility text keeps the full iPad date visible', (
+    tester,
+  ) async {
+    final harness = await WorkflowHarness.create();
+    addTearDown(harness.dispose);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(1024, 1366);
+    tester.platformDispatcher.textScaleFactorTestValue = 3.2;
+
+    await tester.pumpWidget(harness.widget);
+    await tester.pump();
+
+    final dateText = DateFormat.yMMMEd('en').format(DateTime.now());
+    final paragraph = tester.renderObject<RenderParagraph>(find.text(dateText));
+    expect(paragraph.didExceedMaxLines, isFalse);
     expect(tester.takeException(), isNull);
   });
 }
