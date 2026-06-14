@@ -281,6 +281,35 @@ void main() {
   );
 
   test(
+    'focus controller completion keeps history and warns on task reminder cancellation failure',
+    () async {
+      final repository = _MemoryTaskRepository(tasks: [_task('task-1')]);
+      final notifications = _FakeNotificationCoordinator()
+        ..failedCancellationIds.add('task-1');
+      final controller = await _controller(
+        repository: repository,
+        notifications: notifications,
+      );
+      await controller.focusController.startCountUp(
+        taskId: 'task-1',
+        taskTitle: 'Deep work',
+      );
+
+      await controller.focusController.complete(completeTask: true);
+
+      expect(controller.focusHistory, hasLength(1));
+      expect(controller.tasks.single.completed, isTrue);
+      expect(repository.tasks.single.completed, isTrue);
+      expect(notifications.cancelledTaskIds, ['task-1']);
+      expect(
+        controller.operationWarnings.single.operation,
+        'completeFocusReminder',
+      );
+      expect(controller.operationWarnings.single.failedTaskIds, ['task-1']);
+    },
+  );
+
+  test(
     'task and list mutations serialize without orphaning reminders',
     () async {
       final saveStarted = Completer<void>();

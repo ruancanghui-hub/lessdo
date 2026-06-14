@@ -21,6 +21,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
   FocusMode _mode = FocusMode.pomodoro;
   String? _taskId;
   Timer? _displayTimer;
+  var _handlingAction = false;
 
   @override
   void initState() {
@@ -87,6 +88,8 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final focus = widget.store.focusController;
+    final actionsDisabled =
+        _handlingAction || focus.isMutating || focus.isCompleting;
     final mode = _currentMode;
     final seconds = mode == FocusMode.countUp
         ? focus.elapsed.inSeconds
@@ -201,7 +204,9 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   FilledButton(
-                    onPressed: _toggleTimer,
+                    onPressed: actionsDisabled
+                        ? null
+                        : () => _runFocusMutation(_toggleTimer),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size(190, 48),
                       backgroundColor: const Color(0xFF33894B),
@@ -218,9 +223,9 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                   ),
                   const SizedBox(width: 10),
                   OutlinedButton(
-                    onPressed: focus.activeSession == null
+                    onPressed: focus.activeSession == null || actionsDisabled
                         ? null
-                        : () => unawaited(focus.reset()),
+                        : () => _runFocusMutation(focus.reset),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(78, 48),
                       shape: const StadiumBorder(),
@@ -231,17 +236,21 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
               ),
               if (focus.activeSession != null)
                 TextButton(
-                  onPressed: focus.isCompleting
+                  onPressed: actionsDisabled
                       ? null
-                      : () => unawaited(focus.complete()),
+                      : () => _runFocusMutation(() async {
+                          await focus.complete();
+                        }),
                   child: const Text('End session'),
                 ),
               if (selected != null)
                 TextButton.icon(
                   onPressed:
                       focus.activeSession?.taskId == selected.id &&
-                          !focus.isCompleting
-                      ? () => unawaited(focus.complete(completeTask: true))
+                          !actionsDisabled
+                      ? () => _runFocusMutation(() async {
+                          await focus.complete(completeTask: true);
+                        })
                       : null,
                   icon: const Icon(CupertinoIcons.check_mark),
                   label: Text('Complete “${selected.title}”'),
@@ -340,6 +349,26 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
 
   void _changeMode(FocusMode value) {
     setState(() => _mode = value);
+  }
+
+  Future<void> _runFocusMutation(Future<void> Function() action) async {
+    final focus = widget.store.focusController;
+    if (_handlingAction || focus.isMutating || focus.isCompleting) return;
+    setState(() => _handlingAction = true);
+    try {
+      await action();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update the focus session.')),
+      );
+    } finally {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _handlingAction = false);
+        });
+      }
+    }
   }
 
   Future<void> _toggleTimer() async {

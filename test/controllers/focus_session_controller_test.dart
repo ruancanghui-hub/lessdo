@@ -57,7 +57,10 @@ void main() {
     await controller.startCountdown(const Duration(minutes: 1));
     clock.advance(const Duration(minutes: 1));
 
-    await Future.wait([controller.complete(), controller.complete()]);
+    final first = controller.complete();
+    final second = controller.complete();
+    expect(identical(first, second), isTrue);
+    await Future.wait([first, second]);
     await controller.handleLifecycleResume();
 
     expect(await repository.loadFocusHistory(), hasLength(1));
@@ -162,6 +165,54 @@ void main() {
     expect(await repository.loadFocusHistory(), isEmpty);
     expect(notifications.cancelled, [sessionId]);
   });
+
+  test(
+    'complete serializes pause start and cancel without reviving old state',
+    () async {
+      await controller.startCountUp(taskTitle: 'First');
+      final completeStarted = Completer<void>();
+      final allowComplete = Completer<void>();
+      repository
+        ..completeStarted = completeStarted
+        ..allowComplete = allowComplete;
+
+      final completing = controller.complete();
+      final pausing = controller.pause();
+      final starting = controller.startCountUp(taskTitle: 'Second');
+      final cancelling = controller.cancel();
+      await completeStarted.future;
+
+      expect(controller.isCompleting, isTrue);
+      expect(controller.isMutating, isTrue);
+      expect(repository.active?.taskTitle, 'First');
+
+      allowComplete.complete();
+      await Future.wait([completing, pausing, starting, cancelling]);
+
+      expect(repository.history, hasLength(1));
+      expect(repository.active, isNull);
+      expect(controller.activeSession, isNull);
+      expect(controller.history, hasLength(1));
+      expect(controller.isMutating, isFalse);
+      expect(controller.isCompleting, isFalse);
+    },
+  );
+
+  test(
+    'busy resets after mutation error and queue accepts later work',
+    () async {
+      final busyStates = <bool>[];
+      controller.addListener(() => busyStates.add(controller.isMutating));
+      repository.failNextActiveSave = true;
+
+      await expectLater(controller.startCountUp(), throwsA(isA<StateError>()));
+
+      expect(controller.isMutating, isFalse);
+      await controller.startCountUp(taskTitle: 'Recovered');
+      expect(controller.activeSession?.taskTitle, 'Recovered');
+      expect(busyStates, containsAllInOrder([true, false, true, false]));
+    },
+  );
 }
 
 class MutableClock {
@@ -183,6 +234,9 @@ class _MemoryRepository implements TaskRepository {
   final List<String> completedTaskIds = [];
   ActiveFocusSession? active;
   int completeCalls = 0;
+  Completer<void>? completeStarted;
+  Completer<void>? allowComplete;
+  bool failNextActiveSave = false;
 
   @override
   Future<void> completeFocus(
@@ -190,6 +244,9 @@ class _MemoryRepository implements TaskRepository {
     String? completedTaskId,
   }) async {
     completeCalls += 1;
+    completeStarted?.complete();
+    final allow = allowComplete;
+    if (allow != null) await allow.future;
     this.history.insert(0, history);
     active = null;
     if (completedTaskId != null) {
@@ -243,6 +300,10 @@ class _MemoryRepository implements TaskRepository {
 
   @override
   Future<void> saveActiveFocus(ActiveFocusSession? session) async {
+    if (failNextActiveSave) {
+      failNextActiveSave = false;
+      throw StateError('save failed');
+    }
     active = session;
     savedActive.add(session);
   }

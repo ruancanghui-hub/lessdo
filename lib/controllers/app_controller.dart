@@ -84,7 +84,7 @@ class AppController extends ChangeNotifier {
           : const _UnavailableFocusNotifications(),
       clock: _now,
       idFactory: _idFactory,
-      onCompleted: _applyFocusCompletion,
+      onCompleted: _handleFocusCompletion,
     )..addListener(_syncFocusState);
     _notificationSubscription = _notifications.actions.listen(
       (action) => unawaited(handleNotificationAction(action)),
@@ -463,7 +463,10 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  void _applyFocusCompletion(FocusSession history, String? completedTaskId) {
+  Future<void> _handleFocusCompletion(
+    FocusSession history,
+    String? completedTaskId,
+  ) async {
     if (completedTaskId == null) return;
     _tasks = List.unmodifiable([
       for (final task in _tasks)
@@ -476,6 +479,8 @@ class AppController extends ChangeNotifier {
         else
           task,
     ]);
+    notifyListeners();
+    await _cancelWithWarning('completeFocusReminder', [completedTaskId]);
   }
 
   void _syncFocusState({bool notify = true}) {

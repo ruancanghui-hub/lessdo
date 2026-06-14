@@ -9,7 +9,7 @@ import '../models/focus_session.dart';
 import '../notifications/notification_coordinator.dart';
 
 typedef FocusCompletionCallback =
-    void Function(FocusSession history, String? completedTaskId);
+    Future<void> Function(FocusSession history, String? completedTaskId);
 
 class FocusSessionController extends ChangeNotifier {
   FocusSessionController({
@@ -36,6 +36,7 @@ class FocusSessionController extends ChangeNotifier {
   Future<void>? _loadFuture;
   Future<FocusSession?>? _completionFuture;
   String? _lastCompletedSessionId;
+  int _pendingMutations = 0;
 
   ActiveFocusSession? get activeSession => _activeSession;
   List<FocusSession> get history => _history;
@@ -43,6 +44,7 @@ class FocusSessionController extends ChangeNotifier {
       _activeSession != null && _activeSession!.pausedAt == null;
   bool get isPaused => _activeSession?.pausedAt != null;
   bool get isCompleting => _completionFuture != null;
+  bool get isMutating => _pendingMutations > 0;
   String? get lastCompletedSessionId => _lastCompletedSessionId;
 
   Duration get elapsed => _activeSession?.elapsedAt(_clock()) ?? Duration.zero;
@@ -171,11 +173,19 @@ class FocusSessionController extends ChangeNotifier {
   Future<FocusSession?> complete({bool completeTask = false}) {
     final active = _completionFuture;
     if (active != null) return active;
-    final future = _complete(completeTask: completeTask);
+    final future = _enqueue(() => _complete(completeTask: completeTask));
     _completionFuture = future;
-    return future.whenComplete(() {
-      if (identical(_completionFuture, future)) _completionFuture = null;
-    });
+    future.then(
+      (_) => _clearCompletion(future),
+      onError: (_, _) => _clearCompletion(future),
+    );
+    return future;
+  }
+
+  void _clearCompletion(Future<FocusSession?> future) {
+    if (!identical(_completionFuture, future)) return;
+    _completionFuture = null;
+    notifyListeners();
   }
 
   Future<FocusSession?> _complete({required bool completeTask}) async {
@@ -203,8 +213,8 @@ class FocusSessionController extends ChangeNotifier {
     _lastCompletedSessionId = session.id;
     _activeSession = null;
     _history = List.unmodifiable([history, ..._history]);
-    _onCompleted?.call(history, completedTaskId);
     notifyListeners();
+    await _onCompleted?.call(history, completedTaskId);
     await _notifications.cancelFocus(session.id);
     return history;
   }
@@ -228,14 +238,18 @@ class FocusSessionController extends ChangeNotifier {
       session.pausedAt == null &&
       session.remainingAt(_clock()) == Duration.zero;
 
-  Future<void> _enqueue(Future<void> Function() mutation) {
-    final completer = Completer<void>();
+  Future<T> _enqueue<T>(Future<T> Function() mutation) {
+    final completer = Completer<T>();
+    _pendingMutations += 1;
+    notifyListeners();
     _mutationQueue = _mutationQueue.then((_) async {
       try {
-        await mutation();
-        completer.complete();
+        completer.complete(await mutation());
       } catch (error, stackTrace) {
         completer.completeError(error, stackTrace);
+      } finally {
+        _pendingMutations -= 1;
+        notifyListeners();
       }
     });
     return completer.future;
