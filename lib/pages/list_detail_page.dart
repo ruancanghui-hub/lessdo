@@ -22,7 +22,11 @@ class ListDetailPage extends StatelessWidget {
     return AnimatedBuilder(
       animation: store,
       builder: (context, _) {
-        final list = store.listById(listId);
+        final matches = store.lists.where(
+          (candidate) => candidate.id == listId,
+        );
+        if (matches.isEmpty) return const SizedBox.shrink();
+        final list = matches.first;
         final tasks = store.tasksForList(listId);
         final open = tasks.where((task) => !task.completed).toList();
         final completed = tasks.where((task) => task.completed).toList();

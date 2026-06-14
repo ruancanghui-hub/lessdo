@@ -41,6 +41,29 @@ void main() {
     expect(find.text('Cancel'), findsOneWidget);
   });
 
+  testWidgets('deleting the visible list does not rebuild missing state', (
+    tester,
+  ) async {
+    const work = TaskList(id: 'work', name: 'Work', colorValue: 0xFF2E7BF6);
+    final harness = await WorkflowHarness.create(lists: const [work]);
+    addTearDown(harness.dispose);
+
+    await tester.pumpWidget(harness.widget);
+    await tester.tap(find.text('Lists'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Work'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('list-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete List'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Move Tasks to Inbox'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Work'), findsNothing);
+  });
+
   testWidgets('clearing completed tasks requires confirmation', (tester) async {
     const work = TaskList(id: 'work', name: 'Work', colorValue: 0xFF2E7BF6);
     final harness = await WorkflowHarness.create(
