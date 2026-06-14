@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -6,12 +10,35 @@ import 'controllers/app_controller.dart';
 import 'data/app_database.dart';
 import 'data/settings_repository.dart';
 import 'data/sqlite_task_repository.dart';
+import 'diagnostics/diagnostic_log.dart';
 import 'notifications/notification_coordinator.dart';
 import 'services/notification_service.dart';
 import 'services/platform_coordinators.dart';
+import 'services/share_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final diagnostics = await DiagnosticLog.openDefault(
+    appVersion: '1.0.0+1',
+    platform: Platform.operatingSystem,
+  );
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    unawaited(
+      diagnostics
+          .record(DiagnosticEvent.frameworkError, error: details.exception)
+          .catchError((_) {}),
+    );
+  };
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    unawaited(
+      diagnostics
+          .record(DiagnosticEvent.platformError, error: error)
+          .catchError((_) {}),
+    );
+    return true;
+  };
 
   final database = await AppDatabase.open();
   final repository = SqliteTaskRepository(database);
@@ -20,6 +47,14 @@ Future<void> main() async {
   final timeZone = await initializeNotificationTimeZone();
   if (timeZone.warning != null) {
     debugPrint('Notification timezone fallback: ${timeZone.warning!.cause}');
+    unawaited(
+      diagnostics
+          .record(
+            DiagnosticEvent.notificationFailure,
+            error: timeZone.warning!.cause,
+          )
+          .catchError((_) {}),
+    );
   }
   final notificationPlatform = NotificationService(preferences: preferences);
   final notifications = NotificationCoordinator(
@@ -32,6 +67,14 @@ Future<void> main() async {
         debugPrint(
           'Notification timezone fallback: ${refreshed.warning!.cause}',
         );
+        unawaited(
+          diagnostics
+              .record(
+                DiagnosticEvent.notificationFailure,
+                error: refreshed.warning!.cause,
+              )
+              .catchError((_) {}),
+        );
       }
       return refreshed.location;
     },
@@ -43,7 +86,7 @@ Future<void> main() async {
     settingsRepository: settingsRepository,
     notifications: notifications,
     authentication: LocalAuthenticationCoordinator(),
-    sharing: SharePlusCoordinator(),
+    sharing: ShareService(),
   );
   await store.load();
 

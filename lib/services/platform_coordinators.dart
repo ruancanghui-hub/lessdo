@@ -1,6 +1,4 @@
-import 'package:flutter/foundation.dart';
-import 'package:local_auth/local_auth.dart';
-import 'package:share_plus/share_plus.dart';
+import 'biometric_service.dart';
 
 abstract interface class AuthenticationCoordinator {
   Future<bool> authenticate();
@@ -11,29 +9,12 @@ abstract interface class SharingCoordinator {
 }
 
 class LocalAuthenticationCoordinator implements AuthenticationCoordinator {
-  LocalAuthenticationCoordinator({LocalAuthentication? localAuthentication})
-    : _localAuthentication = localAuthentication ?? LocalAuthentication();
+  LocalAuthenticationCoordinator({BiometricService? service})
+    : _service = service ?? BiometricService.localAuth();
 
-  final LocalAuthentication _localAuthentication;
+  final BiometricService _service;
 
   @override
-  Future<bool> authenticate() async {
-    if (kIsWeb) return false;
-    try {
-      if (!await _localAuthentication.isDeviceSupported()) return false;
-      return _localAuthentication.authenticate(
-        localizedReason: 'Unlock LessDo',
-        persistAcrossBackgrounding: true,
-      );
-    } catch (_) {
-      return false;
-    }
-  }
-}
-
-class SharePlusCoordinator implements SharingCoordinator {
-  @override
-  Future<void> share({required String title, required String text}) {
-    return SharePlus.instance.share(ShareParams(title: title, text: text));
-  }
+  Future<bool> authenticate() async =>
+      await _service.authenticate() == BiometricResult.authenticated;
 }

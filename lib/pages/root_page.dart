@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/task_list.dart';
 import '../controllers/app_controller.dart';
 import '../l10n/app_localizations.dart';
+import '../navigation/deep_link_command.dart';
 import 'focus_page.dart';
 import 'list_detail_page.dart';
 import 'lists_page.dart';
@@ -67,42 +68,41 @@ class _RootPageState extends State<RootPage> {
   }
 
   Future<void> _handleLink(Uri uri) async {
-    if (!mounted || uri.scheme != 'lessdo' || uri.toString() == _lastLink) {
+    if (!mounted || uri.toString() == _lastLink) {
+      return;
+    }
+    late final DeepLinkCommand command;
+    try {
+      command = DeepLinkCommand.parse(uri);
+    } on FormatException {
       return;
     }
     _lastLink = uri.toString();
 
-    final action = uri.pathSegments.isEmpty ? '' : uri.pathSegments.last;
-    final list = _findList(uri.queryParameters['list']);
-
-    if (action == 'create') {
-      final content = uri.queryParameters['content']?.trim();
-      if (content == null || content.isEmpty) return;
-      final reminder = _parseUrlDateTime(
-        uri.queryParameters['date'],
-        uri.queryParameters['time'],
-      );
-      await widget.store.addTask(
-        text: content,
-        listId: list?.id ?? 'inbox',
-        dueAt: reminder,
-        reminderAt: reminder,
-      );
-      if (mounted) _setIndex(0);
-    } else if (action == 'open' && list != null) {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => ListDetailPage(store: widget.store, listId: list.id),
-        ),
-      );
+    switch (command) {
+      case CreateTaskCommand():
+        final list = _findList(command.listName);
+        await widget.store.addTask(
+          text: command.content,
+          listId: list?.id ?? 'inbox',
+          dueAt: command.scheduledAt,
+          reminderAt: command.scheduledAt,
+        );
+        if (mounted) _setIndex(0);
+      case OpenListCommand():
+        final list = _findList(command.listName);
+        if (list == null) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                ListDetailPage(store: widget.store, listId: list.id),
+          ),
+        );
     }
 
-    final callback = uri.queryParameters['x-success'];
-    if (callback != null) {
-      final callbackUri = Uri.tryParse(callback);
-      if (callbackUri != null && await canLaunchUrl(callbackUri)) {
-        await launchUrl(callbackUri);
-      }
+    final callback = command.successCallback;
+    if (callback != null && await canLaunchUrl(callback)) {
+      await launchUrl(callback);
     }
   }
 
@@ -112,17 +112,6 @@ class _RootPageState extends State<RootPage> {
       if (list.name.toLowerCase() == name.toLowerCase()) return list;
     }
     return null;
-  }
-
-  DateTime? _parseUrlDateTime(String? date, String? time) {
-    if (date == null) return null;
-    final day = DateTime.tryParse(date);
-    if (day == null) return null;
-    final parts = time?.split(':');
-    final hour = int.tryParse(parts?.firstOrNull ?? '') ?? 9;
-    final minute =
-        int.tryParse(parts != null && parts.length > 1 ? parts[1] : '') ?? 0;
-    return DateTime(day.year, day.month, day.day, hour, minute);
   }
 
   @override

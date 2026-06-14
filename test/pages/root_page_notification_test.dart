@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
@@ -96,6 +98,50 @@ void main() {
 
     expect(notifications.reconcileCalls, reconcilesAfterLoad + 1);
   });
+
+  testWidgets('deep links are validated before task mutation', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final repository = _Repository();
+    final controller = AppController(
+      repository: repository,
+      settingsRepository: SettingsRepository(
+        await SharedPreferences.getInstance(),
+      ),
+      notifications: _Notifications(),
+      now: () => DateTime.utc(2026, 6, 13),
+    );
+    final links = StreamController<Uri>();
+    addTearDown(links.close);
+    addTearDown(controller.dispose);
+    await controller.load();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: RootPage(
+          store: controller,
+          initialLink: () async => null,
+          linkStream: links.stream,
+        ),
+      ),
+    );
+    links.add(Uri.parse('lessdo://x-callback-url/delete'));
+    await tester.pump();
+    expect(controller.tasks, hasLength(1));
+
+    links.add(
+      Uri.parse('lessdo://x-callback-url/create?content=Validated%20task'),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(controller.tasks, hasLength(2));
+    expect(controller.tasks.last.title, 'Validated task');
+  });
 }
 
 class _Notifications implements NotificationCoordinatorContract {
@@ -143,24 +189,36 @@ class _Notifications implements NotificationCoordinatorContract {
 }
 
 class _Repository implements TaskRepository {
-  final task = TaskItem.create(
-    id: 'task-1',
-    title: 'Notification task',
-    listId: 'inbox',
-    createdAt: DateTime.utc(2026, 6, 13),
-  );
+  _Repository()
+    : tasks = [
+        TaskItem.create(
+          id: 'task-1',
+          title: 'Notification task',
+          listId: 'inbox',
+          createdAt: DateTime.utc(2026, 6, 13),
+        ),
+      ];
+
+  final List<TaskItem> tasks;
 
   @override
   Future<RepositorySnapshot> loadSnapshot() async => RepositorySnapshot(
     lists: const [TaskList(id: 'inbox', name: 'Inbox', colorValue: 0)],
-    tasks: [task],
+    tasks: tasks,
   );
 
   @override
-  Future<List<TaskItem>> loadTasks() async => [task];
+  Future<List<TaskItem>> loadTasks() async => List.of(tasks);
 
   @override
-  Future<void> saveTask(TaskItem task) async {}
+  Future<void> saveTask(TaskItem task) async {
+    final index = tasks.indexWhere((item) => item.id == task.id);
+    if (index == -1) {
+      tasks.add(task);
+    } else {
+      tasks[index] = task;
+    }
+  }
 
   @override
   Future<TaskItem?> patchReminderSchedulingState(
