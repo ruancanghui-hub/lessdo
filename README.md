@@ -30,8 +30,11 @@ flutter test integration_test
 flutter build ios --release --no-codesign
 ```
 
-The final App Store build requires publisher-owned signing credentials. See
+The final App Store build requires publisher-owned signing credentials. Fill
+`docs/publisher_contact.yaml`, run `./tool/apply_publisher_contact.sh`, then see
 `docs/APP_STORE_RELEASE.md` for the release checklist.
+
+Optional full gate: `./tool/verify_ios_release.sh`
 
 ## URL Scheme
 

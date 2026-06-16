@@ -1,0 +1,10 @@
+# LessDo 1.0 publisher contact — fill before App Store submission.
+# Apply everywhere: ./tool/apply_publisher_contact.sh
+
+support_email: PUBLISHER_REQUIRED_SUPPORT_EMAIL
+privacy_policy_url: PUBLISHER_REQUIRED_PRIVACY_URL
+support_url: PUBLISHER_REQUIRED_SUPPORT_URL
+copyright: PUBLISHER_REQUIRED_COPYRIGHT
+
+# Set to true only after privacy_policy_url is publicly reachable.
+policy_published: false

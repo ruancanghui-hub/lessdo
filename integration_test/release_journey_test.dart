@@ -143,6 +143,6 @@ void main() {
     expect(find.text('今天'), findsWidgets);
     await tester.tap(find.text('专注').last);
     await tester.pumpAndSettle();
-    expect(find.text('Pause'), findsOneWidget);
+    expect(find.text('暂停'), findsOneWidget);
   });
 }

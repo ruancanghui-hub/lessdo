@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lessdo/pages/legal_page.dart';
+import 'package:lessdo/legal/legal_content.dart';
 
 import '../support/workflow_harness.dart';
 

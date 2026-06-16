@@ -5,6 +5,7 @@ import '../controllers/app_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../models/app_settings.dart';
 import '../theme/lessdo_theme.dart';
+import '../legal/legal_content.dart';
 import '../widgets/lessdo_top_bar.dart';
 import 'legal_page.dart';
 

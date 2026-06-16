@@ -2,7 +2,15 @@
 
 ## Software Release Candidate Verification
 
-Verified on June 14, 2026:
+Verified on June 16, 2026 (reconfirmed after merge to `feature/lessdo-ios-1.0`):
+
+- [x] Unit and widget suite: **188** tests passed.
+- [x] Clean Release rebuild removes stale `in_app_purchase` frameworks (20.6 MB).
+- [x] Publisher contact can be applied from `docs/publisher_contact.yaml` via
+  `./tool/apply_publisher_contact.sh`.
+- [x] Repeatable release gate script: `./tool/verify_ios_release.sh`.
+
+Previously verified on June 14, 2026:
 
 - [x] Dart formatting and localization generation complete.
 - [x] Flutter analysis reports no issues.
@@ -31,8 +39,8 @@ and physical-device gate below must pass first.
 
 ## Submission Blockers
 
-- [ ] **PUBLISHER REQUIRED:** replace the support email and privacy URL
-  placeholders in `docs/PRIVACY_POLICY.md`.
+- [ ] **PUBLISHER REQUIRED:** fill `docs/publisher_contact.yaml` and run
+  `./tool/apply_publisher_contact.sh`.
 - [ ] **PUBLISHER REQUIRED:** provide a public support URL and public privacy
   policy URL in App Store Connect.
 - [ ] **PUBLISHER REQUIRED:** confirm the Apple Developer Team, signing
