@@ -2,7 +2,7 @@
 
 对照规格：`docs/superpowers/specs/2026-06-13-lessdo-ios-1.0-release-design.md`  
 证据日期：2026-06-16  
-代码基线：`feature/lessdo-ios-1.0-execution` @ `2e61c20`  
+代码基线：`feature/lessdo-ios-1.0` @ `f87b523`（已合并 execution 分支）  
 自动化摘要：`release-artifacts/verification-summary.md`（188 单元/组件测试通过，4 条集成测试通过）
 
 ## 结果图例
@@ -22,7 +22,7 @@
 |------|-----------|------|
 | Pass | 100+ | 含法律文案、README、显式日期、横屏 widget 测试 |
 | Partial | 8 | 部分无障碍、Publisher 占位符、真机等 |
-| Incomplete | 1 | 执行分支尚未合入主 feature 分支 |
+| Incomplete | 0 | 软件可控项已合入主 feature 分支 |
 | Publisher | 18 | 真机、签名、TestFlight、占位 URL/邮箱、商店素材 |
 | Deferred | 9 | 1.1+ 功能，需确认 UI 未暴露 |
 
@@ -330,9 +330,9 @@
 
 ## 软件侧优先修复建议（按风险）
 
-1. **P1 — 合并分支**：将 `feature/lessdo-ios-1.0-execution` 合入 `feature/lessdo-ios-1.0`。
-2. **Publisher — 占位符**：替换支持邮箱与公开隐私/支持 URL，移除 `DRAFT`。
-3. **P2 — 真机验证**：通知、Face ID、时区、TestFlight（见 `APP_STORE_RELEASE.md`）。
+1. **Publisher — 占位符**：替换 `PRIVACY_POLICY.md` 与 `legal_page.dart` 中的支持邮箱和公开隐私/支持 URL，政策上线后移除 `DRAFT`。
+2. **Publisher — 签名与 TestFlight**：Archive → Validate → Upload → 真机安装验证。
+3. **Publisher — 商店素材**：按 `APP_STORE_METADATA.md` 上传截图与中英文元数据。
 
 ### 已于 2026-06-16 完成
 
@@ -341,6 +341,7 @@
 - `SmartTaskParser` 支持 ISO / 中文显式日期
 - 引导三页完整路径测试、iPad 横屏 widget 测试
 - 测试套件 188 项全部通过
+- `feature/lessdo-ios-1.0-execution` 已 fast-forward 合入 `feature/lessdo-ios-1.0`
 
 ---
 
