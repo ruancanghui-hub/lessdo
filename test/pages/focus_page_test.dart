@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lessdo/controllers/app_controller.dart';
 import 'package:lessdo/data/settings_repository.dart';
 import 'package:lessdo/data/task_repository.dart';
+import 'package:lessdo/l10n/app_localizations.dart';
 import 'package:lessdo/models/active_focus_session.dart';
 import 'package:lessdo/models/focus_session.dart';
 import 'package:lessdo/models/task_item.dart';
@@ -31,11 +32,7 @@ void main() {
     );
     addTearDown(store.dispose);
     await store.load();
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: FocusPage(store: store)),
-      ),
-    );
+    await tester.pumpWidget(_focusApp(store));
 
     await tester.runAsync(
       () => store.focusController.startPomodoro(const Duration(minutes: 25)),
@@ -171,11 +168,7 @@ void main() {
         duration: const Duration(minutes: 1),
       );
       repository.blockNextActiveLoad();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(body: FocusPage(store: store)),
-        ),
-      );
+      await tester.pumpWidget(_focusApp(store));
 
       try {
         tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
@@ -320,9 +313,7 @@ class _Harness {
   final AppController store;
   final _Repository repository;
 
-  Widget get widget => MaterialApp(
-    home: Scaffold(body: FocusPage(store: store)),
-  );
+  Widget get widget => _focusApp(store);
 
   static Future<_Harness> create({bool withTask = false}) async {
     SharedPreferences.setMockInitialValues({});
@@ -340,6 +331,12 @@ class _Harness {
     return _Harness(store, repository);
   }
 }
+
+Widget _focusApp(AppController store) => MaterialApp(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: Scaffold(body: FocusPage(store: store)),
+);
 
 Future<void> _waitUntil(bool Function() condition) async {
   while (!condition()) {

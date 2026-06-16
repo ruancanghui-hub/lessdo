@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/task_item.dart';
 import '../models/task_list.dart';
 
@@ -23,6 +24,7 @@ class TaskRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final divider = Theme.of(context).dividerColor;
     return Container(
       constraints: const BoxConstraints(minHeight: 60),
@@ -37,8 +39,9 @@ class TaskRow extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Semantics(
                 button: true,
-                label:
-                    '${task.completed ? "Restore" : "Complete"} ${task.title}',
+                label: task.completed
+                    ? l10n.restoreTaskAccessibility(task.title)
+                    : l10n.completeTaskAccessibility(task.title),
                 child: GestureDetector(
                   onTap: onToggle,
                   child: AnimatedContainer(
@@ -106,7 +109,7 @@ class TaskRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _metaText(),
+                      _metaText(context),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -129,11 +132,16 @@ class TaskRow extends StatelessWidget {
     );
   }
 
-  String _metaText() {
-    if (grocery) return task.category.isEmpty ? 'Other' : task.category;
+  String _metaText(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    if (grocery) {
+      return task.category.isEmpty ? l10n.otherCategory : task.category;
+    }
     final reminder = task.reminderAtLocal;
     if (reminder != null) {
-      return '${DateFormat.jm().format(reminder)}  •  ${list.name}';
+      return '${DateFormat.jm(
+        Localizations.localeOf(context).toLanguageTag(),
+      ).format(reminder)}  •  ${list.name}';
     }
     return list.name;
   }

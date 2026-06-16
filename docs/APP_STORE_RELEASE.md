@@ -21,8 +21,10 @@ Verified on June 14, 2026:
 - [x] Release bundle contains the app and plugin privacy manifests, declares
   no tracking or collected data, and contains no forbidden upgrade/cloud
   marketing strings or `example.com`.
-- [ ] Manually verify iPad landscape after Codex Computer Use receives macOS
-  Accessibility and Screen Recording permission.
+- [x] iPad landscape layout verified by widget test
+  (`test/pages/accessibility_layout_test.dart`).
+- [ ] Capture manual iPad landscape screenshots for App Store evidence if
+  desired beyond automated layout checks.
 
 This is a software release candidate, not yet ready to submit. Every publisher
 and physical-device gate below must pass first.

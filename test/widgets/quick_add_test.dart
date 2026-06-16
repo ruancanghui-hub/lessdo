@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lessdo/l10n/app_localizations.dart';
 import 'package:lessdo/widgets/quick_add.dart';
 
 void main() {
@@ -9,9 +10,9 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(
+      _app(
         theme: ThemeData.dark(),
-        home: Scaffold(body: QuickAdd(onSubmit: (_) async {})),
+        child: QuickAdd(onSubmit: (_) async {}),
       ),
     );
 
@@ -30,11 +31,9 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: QuickAdd(
-            onSubmit: (_) async => throw StateError('Could not save task'),
-          ),
+      _app(
+        child: QuickAdd(
+          onSubmit: (_) async => throw StateError('Could not save task'),
         ),
       ),
     );
@@ -54,14 +53,12 @@ void main() {
     final completer = Completer<void>();
     var submissions = 0;
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: QuickAdd(
-            onSubmit: (_) {
-              submissions += 1;
-              return completer.future;
-            },
-          ),
+      _app(
+        child: QuickAdd(
+          onSubmit: (_) {
+            submissions += 1;
+            return completer.future;
+          },
         ),
       ),
     );
@@ -88,9 +85,7 @@ void main() {
   ) async {
     final completer = Completer<void>();
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: QuickAdd(onSubmit: (_) => completer.future)),
-      ),
+      _app(child: QuickAdd(onSubmit: (_) => completer.future)),
     );
     await tester.enterText(find.byType(TextField), 'Pay bill');
     await tester.pump();
@@ -108,6 +103,13 @@ void main() {
     expect(textController.text, 'Pay bill');
   });
 }
+
+Widget _app({required Widget child, ThemeData? theme}) => MaterialApp(
+  theme: theme,
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: Scaffold(body: child),
+);
 
 double _contrastRatio(Color first, Color second) {
   final lighter = first.computeLuminance() > second.computeLuminance()

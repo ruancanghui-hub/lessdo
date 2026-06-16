@@ -226,4 +226,197 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exportDiagnostics => 'Export diagnostics';
+
+  @override
+  String get quickAddHint => 'What needs doing?';
+
+  @override
+  String get groceryAddHint => 'Add an item';
+
+  @override
+  String get addAction => 'Add';
+
+  @override
+  String get smartInputHint => 'Smart input understands “tomorrow at 2pm”';
+
+  @override
+  String get taskDetails => 'Task details';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get listLabel => 'List';
+
+  @override
+  String get dateLabel => 'Date';
+
+  @override
+  String get none => 'None';
+
+  @override
+  String get reminder => 'Reminder';
+
+  @override
+  String get repeat => 'Repeat';
+
+  @override
+  String get repeatDaily => 'Daily';
+
+  @override
+  String get repeatWeekly => 'Weekly';
+
+  @override
+  String get repeatMonthly => 'Monthly';
+
+  @override
+  String get priority => 'Priority';
+
+  @override
+  String get priorityLow => 'Low';
+
+  @override
+  String get priorityNormal => 'Normal';
+
+  @override
+  String get priorityHigh => 'High';
+
+  @override
+  String get notes => 'Notes';
+
+  @override
+  String get addNoteHint => 'Add a note…';
+
+  @override
+  String get subtasks => 'Subtasks';
+
+  @override
+  String get addSubtask => 'Add subtask';
+
+  @override
+  String get deleteTask => 'Delete task';
+
+  @override
+  String get newList => 'New list';
+
+  @override
+  String get create => 'Create';
+
+  @override
+  String get listName => 'List name';
+
+  @override
+  String get listNameHint => 'Weekend trip';
+
+  @override
+  String get standardList => 'Standard';
+
+  @override
+  String get groceryList => 'Grocery';
+
+  @override
+  String get colorLabel => 'Color';
+
+  @override
+  String get allTasks => 'All tasks';
+
+  @override
+  String get completedLabel => 'Completed';
+
+  @override
+  String tasksCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tasks',
+      one: '1 task',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String remainingCount(int count) {
+    return '$count remaining';
+  }
+
+  @override
+  String get everythingDone => 'Everything is done';
+
+  @override
+  String get everythingDoneBody => 'Add another item whenever you need it.';
+
+  @override
+  String get shareList => 'Share list';
+
+  @override
+  String get workingOn => 'Working on';
+
+  @override
+  String get openFocusSession => 'Open focus session';
+
+  @override
+  String get focusModePomodoro => 'Pomodoro';
+
+  @override
+  String get focusModeCountdown => 'Countdown';
+
+  @override
+  String get focusModeCountUp => 'Count up';
+
+  @override
+  String get focusLabelPomodoro => '25 min focus';
+
+  @override
+  String get focusLabelCountdown => '10 min timer';
+
+  @override
+  String get focusLabelCountUp => 'Open session';
+
+  @override
+  String get pause => 'Pause';
+
+  @override
+  String get resume => 'Resume';
+
+  @override
+  String get start => 'Start';
+
+  @override
+  String get reset => 'Reset';
+
+  @override
+  String get endSession => 'End session';
+
+  @override
+  String completeNamedTask(String title) {
+    return 'Complete “$title”';
+  }
+
+  @override
+  String get recentSessions => 'Recent sessions';
+
+  @override
+  String minutesShort(int count) {
+    return '$count min';
+  }
+
+  @override
+  String get emptyFocusHistory =>
+      'Your completed focus sessions will appear here.';
+
+  @override
+  String get focusUpdateFailed => 'Could not update the focus session.';
+
+  @override
+  String completeTaskAccessibility(String title) {
+    return 'Complete $title';
+  }
+
+  @override
+  String restoreTaskAccessibility(String title) {
+    return 'Restore $title';
+  }
+
+  @override
+  String get otherCategory => 'Other';
 }

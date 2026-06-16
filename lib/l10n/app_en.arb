@@ -89,5 +89,105 @@
   "startupLoading": "Loading LessDo",
   "startupFailureTitle": "LessDo could not start",
   "startupFailureBody": "Your data was not deleted. Try again, or export a private diagnostic file for support.",
-  "exportDiagnostics": "Export diagnostics"
+  "exportDiagnostics": "Export diagnostics",
+  "quickAddHint": "What needs doing?",
+  "groceryAddHint": "Add an item",
+  "addAction": "Add",
+  "smartInputHint": "Smart input understands “tomorrow at 2pm”",
+  "taskDetails": "Task details",
+  "save": "Save",
+  "listLabel": "List",
+  "dateLabel": "Date",
+  "none": "None",
+  "reminder": "Reminder",
+  "repeat": "Repeat",
+  "repeatDaily": "Daily",
+  "repeatWeekly": "Weekly",
+  "repeatMonthly": "Monthly",
+  "priority": "Priority",
+  "priorityLow": "Low",
+  "priorityNormal": "Normal",
+  "priorityHigh": "High",
+  "notes": "Notes",
+  "addNoteHint": "Add a note…",
+  "subtasks": "Subtasks",
+  "addSubtask": "Add subtask",
+  "deleteTask": "Delete task",
+  "newList": "New list",
+  "create": "Create",
+  "listName": "List name",
+  "listNameHint": "Weekend trip",
+  "standardList": "Standard",
+  "groceryList": "Grocery",
+  "colorLabel": "Color",
+  "allTasks": "All tasks",
+  "completedLabel": "Completed",
+  "tasksCount": "{count, plural, =1{1 task} other{{count} tasks}}",
+  "@tasksCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remainingCount": "{count} remaining",
+  "@remainingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "everythingDone": "Everything is done",
+  "everythingDoneBody": "Add another item whenever you need it.",
+  "shareList": "Share list",
+  "workingOn": "Working on",
+  "openFocusSession": "Open focus session",
+  "focusModePomodoro": "Pomodoro",
+  "focusModeCountdown": "Countdown",
+  "focusModeCountUp": "Count up",
+  "focusLabelPomodoro": "25 min focus",
+  "focusLabelCountdown": "10 min timer",
+  "focusLabelCountUp": "Open session",
+  "pause": "Pause",
+  "resume": "Resume",
+  "start": "Start",
+  "reset": "Reset",
+  "endSession": "End session",
+  "completeNamedTask": "Complete “{title}”",
+  "@completeNamedTask": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recentSessions": "Recent sessions",
+  "minutesShort": "{count} min",
+  "@minutesShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "emptyFocusHistory": "Your completed focus sessions will appear here.",
+  "focusUpdateFailed": "Could not update the focus session.",
+  "completeTaskAccessibility": "Complete {title}",
+  "@completeTaskAccessibility": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "restoreTaskAccessibility": "Restore {title}",
+  "@restoreTaskAccessibility": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "otherCategory": "Other"
 }

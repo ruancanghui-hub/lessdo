@@ -4,35 +4,39 @@ import 'package:flutter/material.dart';
 import '../widgets/lessdo_top_bar.dart';
 
 const privacyPolicy = '''
-Effective date: June 13, 2026
+Effective date: June 14, 2026
 
-LessDo is designed as a local-first productivity app.
+LessDo is a local-first task and focus app. Version 1.0 does not collect, transmit, sell, or share personal data with the publisher or third parties. It has no account system, advertising, analytics, tracking, or remote backend.
 
-Data storage
-Your lists, tasks, settings, and focus history are stored on your device. LessDo does not require an account and does not operate an analytics or advertising backend in version 1.0.
+Data stored on the device
+Lists, tasks, reminders, settings, and focus history are stored locally in the app's private container. Removing the app may remove this local data. LessDo does not upload or synchronize it in version 1.0.
 
-Notifications and biometrics
-Notification permission is used only to deliver reminders you create. Biometric authentication is handled by the operating system; LessDo does not receive or store biometric data.
+The app keeps a bounded diagnostic log containing event type, time, app version, platform, and technical error type. It excludes task titles, list names, notes, and exception messages. The log remains on the device unless you explicitly export it.
 
-Purchases
-Optional purchases are processed by Apple App Store or Google Play. LessDo receives purchase status but not your full payment-card details.
+Optional system features
+Notifications are requested only when you create or retry a reminder. Reminder text is delivered through Apple's local notification system.
 
-Sharing
-List content leaves the app only when you choose the system Share command.
+Face ID or Touch ID is optional. Authentication is performed by iOS, and LessDo does not receive or store biometric data.
 
-Data deletion
-Deleting tasks removes them from the app. Uninstalling LessDo removes locally stored app data, subject to your device backup settings.
+Sharing occurs only after you choose a share action. The user controls the destination through the iOS share sheet.
+
+Deep links use the registered lessdo URL scheme and are validated before they can create or open local content.
+
+Permissions
+Version 1.0 may request notification and biometric authentication access. It does not request location, calendar, contacts, camera, microphone, photo library, Bluetooth, local network, or tracking permission.
 
 Contact
-Before public release, the publisher will provide a support email and a hosted copy of this policy in the store listing.
+Publisher support email: PUBLISHER_REQUIRED_SUPPORT_EMAIL
+
+Public privacy policy URL: PUBLISHER_REQUIRED_PRIVACY_URL
 ''';
 
 const termsOfUse = '''
-Effective date: June 13, 2026
+Effective date: June 14, 2026
 
 LessDo is provided as a personal productivity tool. You are responsible for reviewing tasks and reminders and should not rely on the app for emergency, medical, legal, or other safety-critical alerts.
 
-Optional subscriptions renew automatically unless canceled through your store account at least 24 hours before the end of the current period. Available products, prices, trial eligibility, and renewal terms are shown by the store before purchase.
+Version 1.0 is free. It has no subscriptions, in-app purchases, or paid upgrades.
 
 Use of the iOS version is also subject to Apple's Standard Licensed Application End User License Agreement.
 

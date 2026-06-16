@@ -64,4 +64,23 @@ void main() {
     expect(paragraph.didExceedMaxLines, isFalse);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('iPad landscape keeps adaptive navigation without layout errors', (
+    tester,
+  ) async {
+    final harness = await WorkflowHarness.create();
+    addTearDown(harness.dispose);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(1366, 1024);
+
+    await tester.pumpWidget(harness.widget);
+    await tester.pump();
+
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }

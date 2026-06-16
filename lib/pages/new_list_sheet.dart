@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/task_list.dart';
 import '../controllers/app_controller.dart';
+import '../l10n/app_localizations.dart';
 
 Future<void> showNewListSheet(
   BuildContext context, {
@@ -58,11 +59,12 @@ class _NewListSheetState extends State<_NewListSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       constraints: const BoxConstraints(maxWidth: 520),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
       ),
       padding: EdgeInsets.fromLTRB(
         22,
@@ -87,11 +89,11 @@ class _NewListSheetState extends State<_NewListSheet> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
+                  child: Text(l10n.cancel),
                 ),
                 Expanded(
                   child: Text(
-                    widget.existing == null ? 'New list' : 'Edit list',
+                    widget.existing == null ? l10n.newList : l10n.editList,
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
@@ -119,7 +121,7 @@ class _NewListSheetState extends State<_NewListSheet> {
                           if (context.mounted) Navigator.of(context).pop();
                         },
                   child: Text(
-                    widget.existing == null ? 'Create' : 'Save',
+                    widget.existing == null ? l10n.create : l10n.save,
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -129,7 +131,7 @@ class _NewListSheetState extends State<_NewListSheet> {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'List name',
+                l10n.listName,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: const Color(0xFF777A82),
                 ),
@@ -141,7 +143,7 @@ class _NewListSheetState extends State<_NewListSheet> {
               autofocus: true,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                hintText: 'Weekend trip',
+                hintText: l10n.listNameHint,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -152,7 +154,7 @@ class _NewListSheetState extends State<_NewListSheet> {
               children: [
                 Expanded(
                   child: _KindButton(
-                    label: 'Standard',
+                    label: l10n.standardList,
                     icon: CupertinoIcons.list_bullet,
                     selected: _kind == ListKind.standard,
                     onTap: () => setState(() => _kind = ListKind.standard),
@@ -161,7 +163,7 @@ class _NewListSheetState extends State<_NewListSheet> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _KindButton(
-                    label: 'Grocery',
+                    label: l10n.groceryList,
                     icon: CupertinoIcons.cart,
                     selected: _kind == ListKind.grocery,
                     onTap: () => setState(() => _kind = ListKind.grocery),
@@ -170,11 +172,14 @@ class _NewListSheetState extends State<_NewListSheet> {
               ],
             ),
             const SizedBox(height: 25),
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Color',
-                style: TextStyle(color: Color(0xFF777A82), fontSize: 13),
+                l10n.colorLabel,
+                style: const TextStyle(
+                  color: Color(0xFF777A82),
+                  fontSize: 13,
+                ),
               ),
             ),
             const SizedBox(height: 12),

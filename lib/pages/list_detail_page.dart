@@ -75,7 +75,9 @@ class ListDetailPage extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                'Completed · ${completed.length}',
+                                AppLocalizations.of(
+                                  context,
+                                ).completedCount(completed.length),
                                 style: const TextStyle(
                                   color: Color(0xFF777981),
                                   fontSize: 13,
@@ -275,7 +277,7 @@ class _ListHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '$remaining remaining',
+                  AppLocalizations.of(context).remainingCount(remaining),
                   style: const TextStyle(
                     color: Color(0xFF8D9098),
                     fontSize: 12,
@@ -287,6 +289,7 @@ class _ListHeader extends StatelessWidget {
           IconButton(
             onPressed: onShare,
             icon: const Icon(CupertinoIcons.share, size: 23),
+            tooltip: AppLocalizations.of(context).shareList,
           ),
         ],
       ),
@@ -299,28 +302,32 @@ class _EmptyList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
+    final l10n = AppLocalizations.of(context);
+    return SizedBox(
       height: 250,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             CupertinoIcons.check_mark_circled,
             color: Color(0xFF57AD74),
             size: 42,
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            'Everything is done',
-            style: TextStyle(
+            l10n.everythingDone,
+            style: const TextStyle(
               color: Color(0xFF4E5057),
               fontWeight: FontWeight.w600,
             ),
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 6),
           Text(
-            'Add another item whenever you need it.',
-            style: TextStyle(color: Color(0xFF94979F), fontSize: 13),
+            l10n.everythingDoneBody,
+            style: const TextStyle(
+              color: Color(0xFF94979F),
+              fontSize: 13,
+            ),
           ),
         ],
       ),

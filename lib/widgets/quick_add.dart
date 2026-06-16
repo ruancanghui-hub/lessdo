@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 class QuickAdd extends StatefulWidget {
   const QuickAdd({super.key, required this.onSubmit, this.grocery = false});
 
@@ -47,6 +49,7 @@ class _QuickAddState extends State<QuickAdd> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final accent = colorScheme.primary;
     return Container(
@@ -79,8 +82,8 @@ class _QuickAddState extends State<QuickAdd> {
                     textInputAction: TextInputAction.done,
                     decoration: InputDecoration(
                       hintText: widget.grocery
-                          ? 'Add an item'
-                          : 'What needs doing?',
+                          ? l10n.groceryAddHint
+                          : l10n.quickAddHint,
                       hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
                       border: InputBorder.none,
                       isCollapsed: true,
@@ -95,9 +98,9 @@ class _QuickAddState extends State<QuickAdd> {
                   TextButton(
                     key: const Key('quick-add-submit'),
                     onPressed: _submitting ? null : _submit,
-                    child: const Text(
-                      'Add',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                    child: Text(
+                      l10n.addAction,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   )
                 else
@@ -119,20 +122,15 @@ class _QuickAddState extends State<QuickAdd> {
               ),
             )
           else
-            const Text.rich(
-              TextSpan(
-                text: 'Smart input understands ',
-                children: [
-                  TextSpan(
-                    text: '“tomorrow at 2pm”',
-                    style: TextStyle(fontStyle: FontStyle.italic),
-                  ),
-                ],
-              ),
+            Text(
+              l10n.smartInputHint,
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, color: Color(0xFF999CA4)),
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF999CA4),
+              ),
             ),
         ],
       ),

@@ -68,4 +68,24 @@ void main() {
     expect(() => parser.parse('明天下午3点123分买咖啡'), throwsFormatException);
     expect(() => parser.parse('明天下午3点999分买咖啡'), throwsFormatException);
   });
+
+  test('parses an explicit ISO date and time', () {
+    final result = parser.parse('Pay rent on 2026-06-15 at 9:30 am');
+
+    expect(result.title, 'Pay rent on');
+    expect(result.dueAt, DateTime(2026, 6, 15, 9, 30));
+    expect(result.reminderAt, result.dueAt);
+  });
+
+  test('parses an explicit Chinese date without a time', () {
+    final result = parser.parse('2026年6月15日交房租');
+
+    expect(result.title, '交房租');
+    expect(result.dueAt, DateTime(2026, 6, 15));
+    expect(result.reminderAt, isNull);
+  });
+
+  test('rejects an invalid explicit date', () {
+    expect(() => parser.parse('Due 2026-02-30'), throwsFormatException);
+  });
 }

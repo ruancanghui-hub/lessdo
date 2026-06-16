@@ -211,4 +211,190 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get exportDiagnostics => '导出诊断文件';
+
+  @override
+  String get quickAddHint => '要做什么？';
+
+  @override
+  String get groceryAddHint => '添加物品';
+
+  @override
+  String get addAction => '添加';
+
+  @override
+  String get smartInputHint => '智能输入支持“明天下午 2 点”';
+
+  @override
+  String get taskDetails => '任务详情';
+
+  @override
+  String get save => '保存';
+
+  @override
+  String get listLabel => '清单';
+
+  @override
+  String get dateLabel => '日期';
+
+  @override
+  String get none => '无';
+
+  @override
+  String get reminder => '提醒';
+
+  @override
+  String get repeat => '重复';
+
+  @override
+  String get repeatDaily => '每天';
+
+  @override
+  String get repeatWeekly => '每周';
+
+  @override
+  String get repeatMonthly => '每月';
+
+  @override
+  String get priority => '优先级';
+
+  @override
+  String get priorityLow => '低';
+
+  @override
+  String get priorityNormal => '普通';
+
+  @override
+  String get priorityHigh => '高';
+
+  @override
+  String get notes => '备注';
+
+  @override
+  String get addNoteHint => '添加备注…';
+
+  @override
+  String get subtasks => '子任务';
+
+  @override
+  String get addSubtask => '添加子任务';
+
+  @override
+  String get deleteTask => '删除任务';
+
+  @override
+  String get newList => '新建清单';
+
+  @override
+  String get create => '创建';
+
+  @override
+  String get listName => '清单名称';
+
+  @override
+  String get listNameHint => '周末旅行';
+
+  @override
+  String get standardList => '标准清单';
+
+  @override
+  String get groceryList => '购物清单';
+
+  @override
+  String get colorLabel => '颜色';
+
+  @override
+  String get allTasks => '所有任务';
+
+  @override
+  String get completedLabel => '已完成';
+
+  @override
+  String tasksCount(int count) {
+    return '$count 个任务';
+  }
+
+  @override
+  String remainingCount(int count) {
+    return '还剩 $count 个';
+  }
+
+  @override
+  String get everythingDone => '全部完成';
+
+  @override
+  String get everythingDoneBody => '需要时可以继续添加任务。';
+
+  @override
+  String get shareList => '分享清单';
+
+  @override
+  String get workingOn => '正在处理';
+
+  @override
+  String get openFocusSession => '开放式专注';
+
+  @override
+  String get focusModePomodoro => '番茄钟';
+
+  @override
+  String get focusModeCountdown => '倒计时';
+
+  @override
+  String get focusModeCountUp => '正计时';
+
+  @override
+  String get focusLabelPomodoro => '25 分钟专注';
+
+  @override
+  String get focusLabelCountdown => '10 分钟计时';
+
+  @override
+  String get focusLabelCountUp => '开放式专注';
+
+  @override
+  String get pause => '暂停';
+
+  @override
+  String get resume => '继续';
+
+  @override
+  String get start => '开始';
+
+  @override
+  String get reset => '重置';
+
+  @override
+  String get endSession => '结束专注';
+
+  @override
+  String completeNamedTask(String title) {
+    return '完成“$title”';
+  }
+
+  @override
+  String get recentSessions => '最近专注';
+
+  @override
+  String minutesShort(int count) {
+    return '$count 分钟';
+  }
+
+  @override
+  String get emptyFocusHistory => '完成的专注记录会显示在这里。';
+
+  @override
+  String get focusUpdateFailed => '无法更新专注状态。';
+
+  @override
+  String completeTaskAccessibility(String title) {
+    return '完成 $title';
+  }
+
+  @override
+  String restoreTaskAccessibility(String title) {
+    return '恢复 $title';
+  }
+
+  @override
+  String get otherCategory => '其他';
 }

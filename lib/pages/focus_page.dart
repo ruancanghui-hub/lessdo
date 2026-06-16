@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../models/active_focus_session.dart';
 import '../controllers/app_controller.dart';
+import '../l10n/app_localizations.dart';
 import '../widgets/lessdo_top_bar.dart';
 
 class FocusPage extends StatefulWidget {
@@ -79,14 +80,9 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
   FocusMode get _currentMode =>
       widget.store.focusController.activeSession?.mode ?? _mode;
 
-  String get _modeLabel => switch (_currentMode) {
-    FocusMode.pomodoro => '25 min focus',
-    FocusMode.countdown => '10 min timer',
-    FocusMode.countUp => 'Open session',
-  };
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final focus = widget.store.focusController;
     final actionsDisabled =
         _handlingAction || focus.isMutating || focus.isCompleting;
@@ -104,7 +100,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
 
     return Column(
       children: [
-        const LessDoTopBar(title: 'Focus'),
+        LessDoTopBar(title: l10n.focus),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(22, 10, 22, 22),
@@ -114,9 +110,12 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                 onChanged: focus.activeSession == null ? _changeMode : null,
               ),
               const SizedBox(height: 25),
-              const Text(
-                'Working on',
-                style: TextStyle(color: Color(0xFF83868E), fontSize: 12),
+              Text(
+                l10n.workingOn,
+                style: const TextStyle(
+                  color: Color(0xFF83868E),
+                  fontSize: 12,
+                ),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String?>(
@@ -126,12 +125,14 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.7),
+                  fillColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
                 ),
                 items: [
-                  const DropdownMenuItem<String?>(
+                  DropdownMenuItem<String?>(
                     value: null,
-                    child: Text('Open focus session'),
+                    child: Text(l10n.openFocusSession),
                   ),
                   for (final task in tasks)
                     DropdownMenuItem<String?>(
@@ -186,7 +187,12 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                             ),
                             const SizedBox(height: 7),
                             Text(
-                              _modeLabel,
+                              switch (mode) {
+                                FocusMode.pomodoro => l10n.focusLabelPomodoro,
+                                FocusMode.countdown =>
+                                  l10n.focusLabelCountdown,
+                                FocusMode.countUp => l10n.focusLabelCountUp,
+                              },
                               style: const TextStyle(
                                 color: Color(0xFF50875E),
                                 fontSize: 13,
@@ -214,10 +220,10 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                     ),
                     child: Text(
                       focus.isRunning
-                          ? 'Pause'
+                          ? l10n.pause
                           : focus.isPaused
-                          ? 'Resume'
-                          : 'Start',
+                          ? l10n.resume
+                          : l10n.start,
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -230,7 +236,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                       minimumSize: const Size(78, 48),
                       shape: const StadiumBorder(),
                     ),
-                    child: const Text('Reset'),
+                    child: Text(l10n.reset),
                   ),
                 ],
               ),
@@ -241,7 +247,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                       : () => _runFocusMutation(() async {
                           await focus.complete();
                         }),
-                  child: const Text('End session'),
+                  child: Text(l10n.endSession),
                 ),
               if (selected != null)
                 TextButton.icon(
@@ -253,7 +259,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                         })
                       : null,
                   icon: const Icon(CupertinoIcons.check_mark),
-                  label: Text('Complete “${selected.title}”'),
+                  label: Text(l10n.completeNamedTask(selected.title)),
                   style: TextButton.styleFrom(
                     foregroundColor: const Color(0xFF388F5A),
                     minimumSize: const Size.fromHeight(48),
@@ -271,16 +277,21 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                   children: [
                     Row(
                       children: [
-                        const Text(
-                          'Recent sessions',
-                          style: TextStyle(
+                        Text(
+                          l10n.recentSessions,
+                          style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         const Spacer(),
                         Text(
-                          '${focus.history.fold<int>(0, (sum, item) => sum + item.minutes)} min',
+                          l10n.minutesShort(
+                            focus.history.fold<int>(
+                              0,
+                              (sum, item) => sum + item.minutes,
+                            ),
+                          ),
                           style: const TextStyle(
                             color: Color(0xFF8B8E96),
                             fontSize: 12,
@@ -289,13 +300,13 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                       ],
                     ),
                     if (focus.history.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 14),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 14),
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            'Your completed focus sessions will appear here.',
-                            style: TextStyle(
+                            l10n.emptyFocusHistory,
+                            style: const TextStyle(
                               color: Color(0xFF93969E),
                               fontSize: 13,
                             ),
@@ -328,7 +339,7 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                                 ),
                               ),
                               Text(
-                                '${session.minutes} min',
+                                l10n.minutesShort(session.minutes),
                                 style: const TextStyle(
                                   color: Color(0xFF777A82),
                                   fontSize: 12,
@@ -360,7 +371,9 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update the focus session.')),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).focusUpdateFailed),
+        ),
       );
     } finally {
       if (mounted) {
@@ -384,7 +397,8 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
     final selected = widget.store.tasks
         .where((task) => task.id == _taskId)
         .firstOrNull;
-    final taskTitle = selected?.title ?? 'Open focus session';
+    final taskTitle =
+        selected?.title ?? AppLocalizations.of(context).openFocusSession;
     switch (_mode) {
       case FocusMode.pomodoro:
         await focus.startPomodoro(
@@ -418,16 +432,17 @@ class _ModeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const labels = {
-      FocusMode.pomodoro: 'Pomodoro',
-      FocusMode.countdown: 'Countdown',
-      FocusMode.countUp: 'Count up',
+    final l10n = AppLocalizations.of(context);
+    final labels = {
+      FocusMode.pomodoro: l10n.focusModePomodoro,
+      FocusMode.countdown: l10n.focusModeCountdown,
+      FocusMode.countUp: l10n.focusModeCountUp,
     };
     return Container(
       height: 40,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFECEEF1),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -441,7 +456,9 @@ class _ModeSelector extends StatelessWidget {
                   duration: const Duration(milliseconds: 160),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: mode == item.key ? Colors.white : Colors.transparent,
+                    color: mode == item.key
+                        ? Theme.of(context).colorScheme.surface
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(6),
                     boxShadow: mode == item.key
                         ? const [
@@ -457,8 +474,8 @@ class _ModeSelector extends StatelessWidget {
                     item.value,
                     style: TextStyle(
                       color: mode == item.key
-                          ? const Color(0xFF17181B)
-                          : const Color(0xFF6F737B),
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 12,
                     ),
                   ),

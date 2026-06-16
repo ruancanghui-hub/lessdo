@@ -26,6 +26,7 @@ class WorkflowHarness {
   static Future<WorkflowHarness> create({
     List<TaskList> lists = const [],
     List<TaskItem> tasks = const [],
+    AppLanguage language = AppLanguage.system,
   }) async {
     const messages = MethodChannel('com.llfbandit.app_links/messages');
     const events = MethodChannel('com.llfbandit.app_links/events');
@@ -39,7 +40,10 @@ class WorkflowHarness {
       await SharedPreferences.getInstance(),
     );
     await settingsRepository.save(
-      const AppSettings(hasCompletedOnboarding: true),
+      AppSettings(
+        hasCompletedOnboarding: true,
+        language: language,
+      ),
     );
     final repository = _MemoryRepository(lists: lists, tasks: tasks);
     final controller = AppController(

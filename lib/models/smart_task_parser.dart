@@ -15,11 +15,13 @@ class SmartTaskParser {
     r'\b(today|tomorrow|next week)\b',
     caseSensitive: false,
   );
+  static final _englishExplicitDate = RegExp(r'\b(\d{4})-(\d{2})-(\d{2})\b');
   static final _englishTime = RegExp(
     r'\b(?:at\s+)?(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b',
     caseSensitive: false,
   );
   static final _chineseDate = RegExp(r'(今天|明天|下周)');
+  static final _chineseExplicitDate = RegExp(r'(\d{4})年(\d{1,2})月(\d{1,2})日');
   static final _chineseTime = RegExp(
     r'(上午|中午|下午|晚上|凌晨)?\s*(\d{1,2})[点時时](半|[0-5]?\d分?)?',
   );
@@ -33,35 +35,46 @@ class SmartTaskParser {
     final current = _now();
     final englishDateMatch = _englishDate.firstMatch(raw);
     final chineseDateMatch = _chineseDate.firstMatch(raw);
+    final englishExplicitDateMatch = _englishExplicitDate.firstMatch(raw);
+    final chineseExplicitDateMatch = _chineseExplicitDate.firstMatch(raw);
     final englishTimeMatch = _englishTime.firstMatch(raw);
     final chineseTimeMatch = _chineseTime.firstMatch(raw);
 
-    final dateMatch = englishDateMatch ?? chineseDateMatch;
+    final relativeDateMatch = englishDateMatch ?? chineseDateMatch;
+    final explicitDateMatch =
+        englishExplicitDateMatch ?? chineseExplicitDateMatch;
     final timeMatch = englishTimeMatch ?? chineseTimeMatch;
-    if (dateMatch == null && timeMatch == null) {
+    if (relativeDateMatch == null && explicitDateMatch == null && timeMatch == null) {
       return SmartTaskResult(title: raw.trim());
     }
 
-    final dayOffset = _dayOffset(
-      englishDateMatch?.group(1)?.toLowerCase() ?? chineseDateMatch?.group(1),
-    );
-    final time = englishTimeMatch != null
-        ? _englishClock(englishTimeMatch)
-        : chineseTimeMatch != null
-        ? _chineseClock(chineseTimeMatch)
-        : const (hour: 0, minute: 0);
-    final dueAt = DateTime(
-      current.year,
-      current.month,
-      current.day + dayOffset,
-      time.hour,
-      time.minute,
-    );
+    final DateTime dueAt;
+    if (explicitDateMatch != null) {
+      dueAt = _explicitDate(explicitDateMatch, englishTimeMatch, chineseTimeMatch);
+    } else {
+      final dayOffset = _dayOffset(
+        englishDateMatch?.group(1)?.toLowerCase() ?? chineseDateMatch?.group(1),
+      );
+      final time = englishTimeMatch != null
+          ? _englishClock(englishTimeMatch)
+          : chineseTimeMatch != null
+          ? _chineseClock(chineseTimeMatch)
+          : const (hour: 0, minute: 0);
+      dueAt = DateTime(
+        current.year,
+        current.month,
+        current.day + dayOffset,
+        time.hour,
+        time.minute,
+      );
+    }
 
     var title = raw;
     for (final match in [
       englishDateMatch,
       chineseDateMatch,
+      englishExplicitDateMatch,
+      chineseExplicitDateMatch,
       englishTimeMatch,
       chineseTimeMatch,
     ]) {
@@ -79,6 +92,26 @@ class SmartTaskParser {
       dueAt: dueAt,
       reminderAt: timeMatch == null ? null : dueAt,
     );
+  }
+
+  DateTime _explicitDate(
+    RegExpMatch dateMatch,
+    RegExpMatch? englishTimeMatch,
+    RegExpMatch? chineseTimeMatch,
+  ) {
+    final year = int.parse(dateMatch.group(1)!);
+    final month = int.parse(dateMatch.group(2)!);
+    final day = int.parse(dateMatch.group(3)!);
+    final time = englishTimeMatch != null
+        ? _englishClock(englishTimeMatch)
+        : chineseTimeMatch != null
+        ? _chineseClock(chineseTimeMatch)
+        : const (hour: 0, minute: 0);
+    final dueAt = DateTime(year, month, day, time.hour, time.minute);
+    if (dueAt.month != month || dueAt.day != day) {
+      throw const FormatException('Invalid explicit date.');
+    }
+    return dueAt;
   }
 
   void _validateChineseTimes(String raw) {

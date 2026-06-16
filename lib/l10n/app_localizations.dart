@@ -493,6 +493,354 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Export diagnostics'**
   String get exportDiagnostics;
+
+  /// No description provided for @quickAddHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What needs doing?'**
+  String get quickAddHint;
+
+  /// No description provided for @groceryAddHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an item'**
+  String get groceryAddHint;
+
+  /// No description provided for @addAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get addAction;
+
+  /// No description provided for @smartInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart input understands “tomorrow at 2pm”'**
+  String get smartInputHint;
+
+  /// No description provided for @taskDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Task details'**
+  String get taskDetails;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @listLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'List'**
+  String get listLabel;
+
+  /// No description provided for @dateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get dateLabel;
+
+  /// No description provided for @none.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get none;
+
+  /// No description provided for @reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder'**
+  String get reminder;
+
+  /// No description provided for @repeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get repeat;
+
+  /// No description provided for @repeatDaily.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily'**
+  String get repeatDaily;
+
+  /// No description provided for @repeatWeekly.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly'**
+  String get repeatWeekly;
+
+  /// No description provided for @repeatMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get repeatMonthly;
+
+  /// No description provided for @priority.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority'**
+  String get priority;
+
+  /// No description provided for @priorityLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get priorityLow;
+
+  /// No description provided for @priorityNormal.
+  ///
+  /// In en, this message translates to:
+  /// **'Normal'**
+  String get priorityNormal;
+
+  /// No description provided for @priorityHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get priorityHigh;
+
+  /// No description provided for @notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get notes;
+
+  /// No description provided for @addNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a note…'**
+  String get addNoteHint;
+
+  /// No description provided for @subtasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtasks'**
+  String get subtasks;
+
+  /// No description provided for @addSubtask.
+  ///
+  /// In en, this message translates to:
+  /// **'Add subtask'**
+  String get addSubtask;
+
+  /// No description provided for @deleteTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete task'**
+  String get deleteTask;
+
+  /// No description provided for @newList.
+  ///
+  /// In en, this message translates to:
+  /// **'New list'**
+  String get newList;
+
+  /// No description provided for @create.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get create;
+
+  /// No description provided for @listName.
+  ///
+  /// In en, this message translates to:
+  /// **'List name'**
+  String get listName;
+
+  /// No description provided for @listNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekend trip'**
+  String get listNameHint;
+
+  /// No description provided for @standardList.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get standardList;
+
+  /// No description provided for @groceryList.
+  ///
+  /// In en, this message translates to:
+  /// **'Grocery'**
+  String get groceryList;
+
+  /// No description provided for @colorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get colorLabel;
+
+  /// No description provided for @allTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'All tasks'**
+  String get allTasks;
+
+  /// No description provided for @completedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get completedLabel;
+
+  /// No description provided for @tasksCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 task} other{{count} tasks}}'**
+  String tasksCount(int count);
+
+  /// No description provided for @remainingCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} remaining'**
+  String remainingCount(int count);
+
+  /// No description provided for @everythingDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything is done'**
+  String get everythingDone;
+
+  /// No description provided for @everythingDoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Add another item whenever you need it.'**
+  String get everythingDoneBody;
+
+  /// No description provided for @shareList.
+  ///
+  /// In en, this message translates to:
+  /// **'Share list'**
+  String get shareList;
+
+  /// No description provided for @workingOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Working on'**
+  String get workingOn;
+
+  /// No description provided for @openFocusSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Open focus session'**
+  String get openFocusSession;
+
+  /// No description provided for @focusModePomodoro.
+  ///
+  /// In en, this message translates to:
+  /// **'Pomodoro'**
+  String get focusModePomodoro;
+
+  /// No description provided for @focusModeCountdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Countdown'**
+  String get focusModeCountdown;
+
+  /// No description provided for @focusModeCountUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Count up'**
+  String get focusModeCountUp;
+
+  /// No description provided for @focusLabelPomodoro.
+  ///
+  /// In en, this message translates to:
+  /// **'25 min focus'**
+  String get focusLabelPomodoro;
+
+  /// No description provided for @focusLabelCountdown.
+  ///
+  /// In en, this message translates to:
+  /// **'10 min timer'**
+  String get focusLabelCountdown;
+
+  /// No description provided for @focusLabelCountUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Open session'**
+  String get focusLabelCountUp;
+
+  /// No description provided for @pause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get pause;
+
+  /// No description provided for @resume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get resume;
+
+  /// No description provided for @start.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get start;
+
+  /// No description provided for @reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get reset;
+
+  /// No description provided for @endSession.
+  ///
+  /// In en, this message translates to:
+  /// **'End session'**
+  String get endSession;
+
+  /// No description provided for @completeNamedTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete “{title}”'**
+  String completeNamedTask(String title);
+
+  /// No description provided for @recentSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent sessions'**
+  String get recentSessions;
+
+  /// No description provided for @minutesShort.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} min'**
+  String minutesShort(int count);
+
+  /// No description provided for @emptyFocusHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Your completed focus sessions will appear here.'**
+  String get emptyFocusHistory;
+
+  /// No description provided for @focusUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update the focus session.'**
+  String get focusUpdateFailed;
+
+  /// No description provided for @completeTaskAccessibility.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete {title}'**
+  String completeTaskAccessibility(String title);
+
+  /// No description provided for @restoreTaskAccessibility.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore {title}'**
+  String restoreTaskAccessibility(String title);
+
+  /// No description provided for @otherCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get otherCategory;
 }
 
 class _AppLocalizationsDelegate

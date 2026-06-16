@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/task_list.dart';
 import '../controllers/app_controller.dart';
+import '../l10n/app_localizations.dart';
 import '../widgets/lessdo_top_bar.dart';
 import 'list_detail_page.dart';
 import 'new_list_sheet.dart';
@@ -14,13 +15,14 @@ class ListsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final openCount = store.tasks.where((task) => !task.completed).length;
     final completedCount = store.tasks.where((task) => task.completed).length;
 
     return Column(
       children: [
         LessDoTopBar(
-          title: 'Lists',
+          title: l10n.lists,
           onAdd: () => showNewListSheet(context, store: store),
         ),
         Expanded(
@@ -30,12 +32,12 @@ class ListsPage extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: _SummaryTile(label: 'All tasks', value: openCount),
+                    child: _SummaryTile(label: l10n.allTasks, value: openCount),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _SummaryTile(
-                      label: 'Completed',
+                      label: l10n.completedLabel,
                       value: completedCount,
                     ),
                   ),
@@ -64,51 +66,6 @@ class ListsPage extends StatelessWidget {
                           ),
                         ),
                       ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 22),
-              Container(
-                height: 72,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF7FAFF),
-                  border: Border.all(color: const Color(0xFFD9E5F7)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(
-                      CupertinoIcons.share,
-                      size: 25,
-                      color: Color(0xFF2E7BF6),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Share a list',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            'Plan groceries or trips together.',
-                            style: TextStyle(
-                              color: Color(0xFF7E828A),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      CupertinoIcons.chevron_right,
-                      size: 16,
-                      color: Color(0xFFB5B8BF),
-                    ),
                   ],
                 ),
               ),
@@ -207,7 +164,7 @@ class _ListRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$count ${count == 1 ? "task" : "tasks"}',
+                    AppLocalizations.of(context).tasksCount(count),
                     style: const TextStyle(
                       color: Color(0xFF90939B),
                       fontSize: 12,

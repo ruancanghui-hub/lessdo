@@ -95,9 +95,9 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
         maxWidth: 520,
         maxHeight: MediaQuery.sizeOf(context).height * 0.93,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
       ),
       child: Column(
         children: [
@@ -116,21 +116,24 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
+                  child: Text(l10n.cancel),
                 ),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Task details',
+                    l10n.taskDetails,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 TextButton(
                   key: const Key('task-save'),
                   onPressed: _saving ? null : _save,
-                  child: const Text(
-                    'Save',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                  child: Text(
+                    l10n.save,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -171,7 +174,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                 const SizedBox(height: 18),
                 _SelectRow<String>(
                   icon: CupertinoIcons.list_bullet,
-                  label: 'List',
+                  label: l10n.listLabel,
                   value: _draft.listId,
                   items: {
                     for (final list in widget.store.lists) list.id: list.name,
@@ -181,29 +184,33 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                 ),
                 _ActionRow(
                   icon: CupertinoIcons.calendar,
-                  label: 'Date',
+                  label: l10n.dateLabel,
                   value: _draft.dueAt == null
-                      ? 'None'
-                      : DateFormat.MMMd().format(_draft.dueAtLocal!),
+                      ? l10n.none
+                      : DateFormat.MMMd(
+                          Localizations.localeOf(context).toLanguageTag(),
+                        ).format(_draft.dueAtLocal!),
                   onTap: _pickDueDate,
                 ),
                 _ActionRow(
                   icon: CupertinoIcons.bell,
-                  label: 'Reminder',
+                  label: l10n.reminder,
                   value: _draft.reminderAt == null
-                      ? 'None'
-                      : DateFormat.jm().format(_draft.reminderAtLocal!),
+                      ? l10n.none
+                      : DateFormat.jm(
+                          Localizations.localeOf(context).toLanguageTag(),
+                        ).format(_draft.reminderAtLocal!),
                   onTap: _pickReminder,
                 ),
                 _SelectRow<RepeatRule>(
                   icon: CupertinoIcons.repeat,
-                  label: 'Repeat',
+                  label: l10n.repeat,
                   value: _draft.repeatRule,
-                  items: const {
-                    RepeatRule.none: 'None',
-                    RepeatRule.daily: 'Daily',
-                    RepeatRule.weekly: 'Weekly',
-                    RepeatRule.monthly: 'Monthly',
+                  items: {
+                    RepeatRule.none: l10n.none,
+                    RepeatRule.daily: l10n.repeatDaily,
+                    RepeatRule.weekly: l10n.repeatWeekly,
+                    RepeatRule.monthly: l10n.repeatMonthly,
                   },
                   onChanged: (value) => setState(
                     () => _draft = _draft.copyWith(repeatRule: value),
@@ -211,36 +218,42 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                 ),
                 _SelectRow<TaskPriority>(
                   icon: CupertinoIcons.sparkles,
-                  label: 'Priority',
+                  label: l10n.priority,
                   value: _draft.priority,
-                  items: const {
-                    TaskPriority.low: 'Low',
-                    TaskPriority.normal: 'Normal',
-                    TaskPriority.high: 'High',
+                  items: {
+                    TaskPriority.low: l10n.priorityLow,
+                    TaskPriority.normal: l10n.priorityNormal,
+                    TaskPriority.high: l10n.priorityHigh,
                   },
                   onChanged: (value) =>
                       setState(() => _draft = _draft.copyWith(priority: value)),
                 ),
                 const SizedBox(height: 22),
-                const Text(
-                  'Notes',
-                  style: TextStyle(color: Color(0xFF74767D), fontSize: 13),
+                Text(
+                  l10n.notes,
+                  style: const TextStyle(
+                    color: Color(0xFF74767D),
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _notesController,
                   maxLines: 4,
                   decoration: InputDecoration(
-                    hintText: 'Add a note…',
+                    hintText: l10n.addNoteHint,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                 ),
                 const SizedBox(height: 22),
-                const Text(
-                  'Subtasks',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                Text(
+                  l10n.subtasks,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 for (final subtask in _draft.subtasks)
@@ -322,17 +335,17 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                       child: TextField(
                         controller: _subtaskController,
                         onSubmitted: (_) => _addSubtask(),
-                        decoration: const InputDecoration(
-                          hintText: 'Add subtask',
+                        decoration: InputDecoration(
+                          hintText: l10n.addSubtask,
                           border: InputBorder.none,
                         ),
                       ),
                     ),
                     TextButton(
                       onPressed: _addSubtask,
-                      child: const Text(
-                        'Add',
-                        style: TextStyle(fontWeight: FontWeight.w700),
+                      child: Text(
+                        l10n.addAction,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
                   ],
@@ -352,7 +365,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
                     ),
                   ),
                   icon: const Icon(CupertinoIcons.trash, size: 20),
-                  label: const Text('Delete task'),
+                  label: Text(l10n.deleteTask),
                 ),
               ],
             ),
