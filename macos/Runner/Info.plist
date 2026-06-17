@@ -20,7 +20,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.ruancanghui.lessdo</string>
+			<string>com.nightelf.lessdo</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>lessdo</string>

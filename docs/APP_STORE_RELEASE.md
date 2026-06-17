@@ -53,7 +53,7 @@ and physical-device gate below must pass first.
   policy URL in App Store Connect.
 - [ ] **PUBLISHER REQUIRED:** confirm the Apple Developer Team, signing
   certificate, distribution profile, legal seller name, and bundle ID
-  `com.ruancanghui.lessdo`.
+  `com.nightelf.lessdo`.
 - [ ] Remove the `DRAFT` marker only after the public policy is reachable.
 - [x] Public policy and support URLs return HTTP 200 (GitHub Pages).
 

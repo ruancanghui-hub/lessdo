@@ -1,7 +1,7 @@
 === App Information ===
 Name: LessDo
 Subtitle: Tasks, reminders and focus
-Bundle ID: com.ruancanghui.lessdo
+Bundle ID: com.nightelf.lessdo
 SKU: lessdo-ios-1.0
 Primary Category: Productivity
 Secondary Category: Utilities

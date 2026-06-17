@@ -1,7 +1,7 @@
 === 应用信息 ===
 名称: LessDo 待办与专注
 副标题: 清爽任务、提醒与专注计时
-Bundle ID: com.ruancanghui.lessdo
+Bundle ID: com.nightelf.lessdo
 主类别: 效率
 副类别: 工具
 价格: 免费
