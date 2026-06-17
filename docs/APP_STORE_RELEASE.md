@@ -52,13 +52,13 @@ Do not submit while any item above remains incomplete.
 
 ## GitHub Pages (privacy and support URLs)
 
-1. Create or use a public GitHub repository named `lessdo` under `nightelf`.
-2. Push this project (or at least `docs/hosted/` on the default branch).
-3. In the repository: **Settings → Pages → Build from branch → `/docs/hosted`**.
-4. Wait until these URLs return HTTP 200:
-   - `https://nightelf.github.io/lessdo/privacy.html`
-   - `https://nightelf.github.io/lessdo/support.html`
-5. Update `support_email` in `docs/publisher_contact.yaml` if needed, set
+1. The public site is served from `ruancanghui-hub/ruancanghui-hub.github.io`
+   under `lessdo/`.
+2. Confirm these URLs return HTTP 200:
+   - `https://ruancanghui-hub.github.io/lessdo/privacy.html`
+   - `https://ruancanghui-hub.github.io/lessdo/support.html`
+3. Optional: create a separate `lessdo` repository for the Flutter source code.
+4. Update `support_email` in `docs/publisher_contact.yaml` if needed, keep
    `policy_published: true`, then run `./tool/apply_publisher_contact.sh`.
 
 ## App Store Connect

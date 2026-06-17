@@ -2,13 +2,13 @@
 # GitHub Pages: deploy docs/hosted/ → Settings → Pages → /docs/hosted
 # Apply: ./tool/apply_publisher_contact.sh
 
-github_user: nightelf
+github_user: ruancanghui-hub
 github_repo: lessdo
 
 support_email: lessdo.support@nightelf.dev
-privacy_policy_url: https://nightelf.github.io/lessdo/privacy.html
-support_url: https://nightelf.github.io/lessdo/support.html
+privacy_policy_url: https://ruancanghui-hub.github.io/lessdo/privacy.html
+support_url: https://ruancanghui-hub.github.io/lessdo/support.html
 copyright: Copyright © 2026 nightelf
 
 # Set to true after Pages is live and URLs return 200.
-policy_published: false
+policy_published: true

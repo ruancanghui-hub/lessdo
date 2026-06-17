@@ -2,8 +2,8 @@
 
 Publisher-controlled URLs below are submission blockers:
 
-- Support URL: `https://nightelf.github.io/lessdo/support.html`
-- Privacy policy URL: `https://nightelf.github.io/lessdo/privacy.html`
+- Support URL: `https://ruancanghui-hub.github.io/lessdo/support.html`
+- Privacy policy URL: `https://ruancanghui-hub.github.io/lessdo/privacy.html`
 - Marketing URL: optional
 
 ## English (U.S.)
@@ -96,7 +96,7 @@ Expected rating: 4+, subject to App Store Connect's final calculation.
 - Tracking: No
 - Tracking domains: None
 - Privacy choices URL: Not applicable for version 1.0
-- Privacy policy URL: `https://nightelf.github.io/lessdo/privacy.html`
+- Privacy policy URL: `https://ruancanghui-hub.github.io/lessdo/privacy.html`
 
 ## Review Notes
 

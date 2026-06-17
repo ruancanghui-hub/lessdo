@@ -1,8 +1,5 @@
 # LessDo Privacy Policy
 
-**DRAFT: do not publish until the publisher supplies the support contact and
-public policy URL.**
-
 Effective date: June 14, 2026.
 
 ## Summary
@@ -48,7 +45,4 @@ library, Bluetooth, local network, or tracking permission.
 
 Publisher support email: `lessdo.support@nightelf.dev`
 
-Public privacy policy URL: `https://nightelf.github.io/lessdo/privacy.html`
-
-This draft becomes publishable only after both values are replaced with the
-publisher's real contact details.
+Public privacy policy URL: `https://ruancanghui-hub.github.io/lessdo/privacy.html`

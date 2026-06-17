@@ -58,9 +58,10 @@ void main() {
     final release = File('docs/APP_STORE_RELEASE.md').readAsStringSync();
     final metadata = File('docs/APP_STORE_METADATA.md');
 
-    expect(privacy, contains('DRAFT'));
     expect(privacy, contains('does not collect'));
-    expect(release, contains('PUBLISHER REQUIRED'));
+    if (privacy.contains('DRAFT')) {
+      expect(release, contains('PUBLISHER REQUIRED'));
+    }
     expect(release, contains('public support URL'));
     expect(metadata.existsSync(), isTrue);
 
