@@ -127,7 +127,7 @@ apply_bundle_id() {
       File.join(root, "macos/Runner/Configs/AppInfo.xcconfig"),
       File.read(File.join(root, "macos/Runner/Configs/AppInfo.xcconfig")).sub(
         /^PRODUCT_BUNDLE_IDENTIFIER = .+;/,
-        "PRODUCT_BUNDLE_IDENTIFIER = #{bundle}",
+        "PRODUCT_BUNDLE_IDENTIFIER = #{bundle};",
       ),
     )
 
