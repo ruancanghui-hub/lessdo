@@ -50,6 +50,17 @@ and physical-device gate below must pass first.
 
 Do not submit while any item above remains incomplete.
 
+## GitHub Pages (privacy and support URLs)
+
+1. Create or use a public GitHub repository named `lessdo` under `nightelf`.
+2. Push this project (or at least `docs/hosted/` on the default branch).
+3. In the repository: **Settings → Pages → Build from branch → `/docs/hosted`**.
+4. Wait until these URLs return HTTP 200:
+   - `https://nightelf.github.io/lessdo/privacy.html`
+   - `https://nightelf.github.io/lessdo/support.html`
+5. Update `support_email` in `docs/publisher_contact.yaml` if needed, set
+   `policy_published: true`, then run `./tool/apply_publisher_contact.sh`.
+
 ## App Store Connect
 
 - [ ] Version is `1.0.0`; build number is greater than every uploaded build.

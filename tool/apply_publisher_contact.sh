@@ -108,4 +108,11 @@ perl -pi -e "s|- Support URL: .*|- Support URL: \`$SUPPORT_URL\`|" "$ROOT/docs/A
 perl -pi -e "s|- Copyright: .*|- Copyright: \`$COPYRIGHT\`|" "$ROOT/docs/APP_STORE_METADATA.md"
 perl -pi -e "s|- Privacy policy URL: .*|- Privacy policy URL: \`$PRIVACY_URL\`|g" "$ROOT/docs/APP_STORE_METADATA.md"
 
+for hosted in privacy.html support.html; do
+  perl -pi -e "s/LESSDO_SUPPORT_EMAIL/$EMAIL/g" "$ROOT/docs/hosted/$hosted"
+done
+
 echo "Applied publisher contact from $CONFIG"
+echo "GitHub Pages URLs:"
+echo "  $PRIVACY_URL"
+echo "  $SUPPORT_URL"

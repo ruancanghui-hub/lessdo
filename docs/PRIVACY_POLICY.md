@@ -46,9 +46,9 @@ library, Bluetooth, local network, or tracking permission.
 
 ## Contact
 
-Publisher support email: `PUBLISHER_REQUIRED_SUPPORT_EMAIL`
+Publisher support email: `lessdo.support@nightelf.dev`
 
-Public privacy policy URL: `PUBLISHER_REQUIRED_PRIVACY_URL`
+Public privacy policy URL: `https://nightelf.github.io/lessdo/privacy.html`
 
 This draft becomes publishable only after both values are replaced with the
 publisher's real contact details.

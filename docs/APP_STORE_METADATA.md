@@ -2,8 +2,8 @@
 
 Publisher-controlled URLs below are submission blockers:
 
-- Support URL: `PUBLISHER_REQUIRED_SUPPORT_URL`
-- Privacy policy URL: `PUBLISHER_REQUIRED_PRIVACY_URL`
+- Support URL: `https://nightelf.github.io/lessdo/support.html`
+- Privacy policy URL: `https://nightelf.github.io/lessdo/privacy.html`
 - Marketing URL: optional
 
 ## English (U.S.)
@@ -79,7 +79,7 @@ LessDo 是一个安静、私密的待办与专注空间。
 - Price: Free
 - Availability: iPhone and iPad
 - Minimum OS: iOS 16.0
-- Copyright: `PUBLISHER_REQUIRED_COPYRIGHT`
+- Copyright: `Copyright © 2026 nightelf`
 
 ## Age Rating Worksheet
 
@@ -96,7 +96,7 @@ Expected rating: 4+, subject to App Store Connect's final calculation.
 - Tracking: No
 - Tracking domains: None
 - Privacy choices URL: Not applicable for version 1.0
-- Privacy policy URL: `PUBLISHER_REQUIRED_PRIVACY_URL`
+- Privacy policy URL: `https://nightelf.github.io/lessdo/privacy.html`
 
 ## Review Notes
 

@@ -1,10 +1,14 @@
-# LessDo 1.0 publisher contact — fill before App Store submission.
-# Apply everywhere: ./tool/apply_publisher_contact.sh
+# LessDo 1.0 publisher contact
+# GitHub Pages: deploy docs/hosted/ → Settings → Pages → /docs/hosted
+# Apply: ./tool/apply_publisher_contact.sh
 
-support_email: PUBLISHER_REQUIRED_SUPPORT_EMAIL
-privacy_policy_url: PUBLISHER_REQUIRED_PRIVACY_URL
-support_url: PUBLISHER_REQUIRED_SUPPORT_URL
-copyright: PUBLISHER_REQUIRED_COPYRIGHT
+github_user: nightelf
+github_repo: lessdo
 
-# Set to true only after privacy_policy_url is publicly reachable.
+support_email: lessdo.support@nightelf.dev
+privacy_policy_url: https://nightelf.github.io/lessdo/privacy.html
+support_url: https://nightelf.github.io/lessdo/support.html
+copyright: Copyright © 2026 nightelf
+
+# Set to true after Pages is live and URLs return 200.
 policy_published: false
