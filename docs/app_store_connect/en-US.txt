@@ -1,0 +1,44 @@
+=== App Information ===
+Name: LessDo
+Subtitle: Tasks, reminders and focus
+Bundle ID: com.nightelf.lessdo
+SKU: lessdo-ios-1.0
+Primary Category: Productivity
+Secondary Category: Utilities
+Price: Free
+
+=== Promotional Text ===
+A calm, private way to capture tasks and make focused progress.
+
+=== Description ===
+LessDo is a calm, private place for everything you need to remember.
+
+Capture tasks quickly, organize them into flexible lists, schedule local reminders, and make focused progress with pomodoro, countdown, or count-up timers. Grocery lists keep shopping items easy to scan, while Today and overdue views help you see what matters now.
+
+Everything in version 1.0 stays on your device. There is no account, no advertising, no analytics, and no tracking. Optional Face ID or Touch ID lock adds another layer of privacy.
+
+Highlights:
+
+- Fast task capture with dates and reminders
+- Custom and grocery lists
+- Today, overdue, and completed task views
+- Pomodoro, countdown, and count-up focus modes
+- Optional local notifications
+- Optional biometric lock
+- English and Simplified Chinese
+- iPhone and iPad layouts
+
+=== Keywords ===
+todo,tasks,reminders,focus,pomodoro,checklist,planner,grocery,timer
+
+=== URLs ===
+Privacy Policy URL: https://ruancanghui-hub.github.io/lessdo/privacy.html
+Support URL: https://ruancanghui-hub.github.io/lessdo/support.html
+Marketing URL: (leave blank)
+
+=== Version ===
+Version: 1.0.0
+Build: 1 (increment for each upload)
+
+=== Copyright ===
+Copyright © 2026 nightelf

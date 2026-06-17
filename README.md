@@ -14,6 +14,20 @@ in-app purchases.
 ## Run
 
 ```bash
+./tool/run.sh
+```
+
+Targets:
+
+```bash
+./tool/run.sh iphone
+./tool/run.sh ipad
+./tool/run.sh macos
+```
+
+Manual:
+
+```bash
 flutter pub get
 flutter gen-l10n
 flutter run
@@ -35,6 +49,9 @@ The final App Store build requires publisher-owned signing credentials. Fill
 `docs/APP_STORE_RELEASE.md` for the release checklist.
 
 Optional full gate: `./tool/verify_ios_release.sh`
+
+App Store upload prep: `./tool/prepare_app_store_upload.sh` — see
+`docs/APP_STORE_CONNECT_UPLOAD.md`.
 
 ## URL Scheme
 

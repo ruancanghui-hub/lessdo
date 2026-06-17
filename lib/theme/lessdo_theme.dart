@@ -53,7 +53,6 @@ class LessDoTheme {
           .apply(
             bodyColor: const Color(0xFF111216),
             displayColor: const Color(0xFF111216),
-            fontSizeFactor: scale,
           )
           .copyWith(
             headlineSmall: TextStyle(
@@ -104,7 +103,19 @@ class LessDoTheme {
     final scale = largeText ? 1.1 : 1.0;
     return base.copyWith(
       splashFactory: NoSplash.splashFactory,
-      textTheme: base.textTheme.apply(fontSizeFactor: scale),
+      textTheme: base.textTheme.copyWith(
+        headlineSmall: TextStyle(
+          fontSize: 21 * scale,
+          fontWeight: FontWeight.w700,
+        ),
+        titleMedium: TextStyle(
+          fontSize: 16 * scale,
+          fontWeight: FontWeight.w600,
+        ),
+        bodyLarge: TextStyle(fontSize: 15 * scale),
+        bodyMedium: TextStyle(fontSize: 13 * scale),
+        bodySmall: TextStyle(fontSize: 11 * scale),
+      ),
       cupertinoOverrideTheme: const CupertinoThemeData(
         brightness: Brightness.dark,
         primaryColor: Color(0xFF6CA6FF),

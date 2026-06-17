@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import '../legal/legal_content.dart';
 import '../widgets/lessdo_top_bar.dart';
 
 class LegalPage extends StatelessWidget {

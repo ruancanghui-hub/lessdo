@@ -2,6 +2,14 @@
 
 ## Software Release Candidate Verification
 
+Verified on June 17, 2026:
+
+- [x] `./tool/run.sh` launches on iPhone simulator.
+- [x] Large-text theme no longer crashes on `TextTheme.apply` (regression test in
+  `test/theme/lessdo_theme_test.dart`).
+- [x] App Store Connect copy pack in `docs/app_store_connect/`.
+- [x] Upload readiness script: `./tool/prepare_app_store_upload.sh`.
+
 Verified on June 16, 2026 (reconfirmed after merge to `feature/lessdo-ios-1.0`):
 
 - [x] Unit and widget suite: **188** tests passed.
@@ -41,14 +49,20 @@ and physical-device gate below must pass first.
 
 - [ ] **PUBLISHER REQUIRED:** fill `docs/publisher_contact.yaml` and run
   `./tool/apply_publisher_contact.sh`.
-- [ ] **PUBLISHER REQUIRED:** provide a public support URL and public privacy
+- [x] **PUBLISHER REQUIRED:** provide a public support URL and public privacy
   policy URL in App Store Connect.
 - [ ] **PUBLISHER REQUIRED:** confirm the Apple Developer Team, signing
   certificate, distribution profile, legal seller name, and bundle ID
   `com.nightelf.lessdo`.
 - [ ] Remove the `DRAFT` marker only after the public policy is reachable.
+- [x] Public policy and support URLs return HTTP 200 (GitHub Pages).
 
 Do not submit while any item above remains incomplete.
+
+## App Store Connect upload
+
+Follow `docs/APP_STORE_CONNECT_UPLOAD.md`. Run `./tool/prepare_app_store_upload.sh`
+before Archive upload. Paste metadata from `docs/app_store_connect/`.
 
 ## GitHub Pages (privacy and support URLs)
 

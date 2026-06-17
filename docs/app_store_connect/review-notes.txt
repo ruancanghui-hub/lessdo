@@ -1,0 +1,14 @@
+LessDo 1.0 is a free, local-only task and focus app with no account.
+
+Notification permission is requested only after a user schedules or retries a reminder. Biometric authentication is optional under Settings > Privacy. Biometric data is processed by iOS and is not available to the app.
+
+To test URL actions:
+
+lessdo://x-callback-url/create?content=Review%20task
+lessdo://x-callback-url/open?list=Inbox
+
+No review account, server configuration, or special hardware is required.
+A physical device is required to verify notification delivery and biometrics.
+
+Support: lessdo.support@nightelf.dev
+Privacy: https://ruancanghui-hub.github.io/lessdo/privacy.html
