@@ -38,6 +38,13 @@ else
   bad "unexpected marketing version ${MARKETING}"
 fi
 
+BUNDLE_ID="$(yaml_value ios_bundle_id)"
+if rg -q "PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};" ios/Runner.xcodeproj/project.pbxproj; then
+  ok "iOS bundle ID matches publisher config (${BUNDLE_ID})"
+else
+  bad "iOS bundle ID mismatch (expected ${BUNDLE_ID})"
+fi
+
 echo
 echo "==> Publisher URLs"
 PRIVACY_URL="$(yaml_value privacy_policy_url)"

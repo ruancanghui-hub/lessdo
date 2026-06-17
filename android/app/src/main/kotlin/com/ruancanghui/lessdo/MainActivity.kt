@@ -1,4 +1,4 @@
-package com.nightelf.lessdo
+package com.ruancanghui.lessdo
 
 import io.flutter.embedding.android.FlutterActivity
 

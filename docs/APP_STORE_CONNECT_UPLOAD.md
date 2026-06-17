@@ -17,7 +17,7 @@
 | 平台 | iOS |
 | 名称 | LessDo |
 | 主要语言 | English (U.S.) |
-| Bundle ID | `com.nightelf.lessdo` |
+| Bundle ID | `com.ruancanghui.lessdo` |
 | SKU | `lessdo-ios-1.0` |
 | 用户访问权限 | 完全访问权限 |
 

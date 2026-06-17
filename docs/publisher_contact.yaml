@@ -5,6 +5,8 @@
 github_user: ruancanghui-hub
 github_repo: lessdo
 
+ios_bundle_id: com.ruancanghui.lessdo
+
 support_email: lessdo.support@nightelf.dev
 privacy_policy_url: https://ruancanghui-hub.github.io/lessdo/privacy.html
 support_url: https://ruancanghui-hub.github.io/lessdo/support.html

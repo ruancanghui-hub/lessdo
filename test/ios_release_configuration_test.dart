@@ -53,6 +53,30 @@ void main() {
     },
   );
 
+  test('iOS bundle identifier matches publisher contact config', () {
+    final config = File('docs/publisher_contact.yaml').readAsStringSync();
+    final bundleId = RegExp(
+      r'^ios_bundle_id:\s*(\S+)',
+      multiLine: true,
+    ).firstMatch(config)?.group(1);
+    expect(bundleId, isNotNull);
+
+    final project = File(
+      'ios/Runner.xcodeproj/project.pbxproj',
+    ).readAsStringSync();
+    expect(
+      project,
+      contains('PRODUCT_BUNDLE_IDENTIFIER = $bundleId;'),
+    );
+    expect(
+      project,
+      contains('PRODUCT_BUNDLE_IDENTIFIER = $bundleId.RunnerTests;'),
+    );
+
+    final plist = File('ios/Runner/Info.plist').readAsStringSync();
+    expect(plist, contains('<string>$bundleId</string>'));
+  });
+
   test('release documents match the free local-only release', () {
     final privacy = File('docs/PRIVACY_POLICY.md').readAsStringSync();
     final release = File('docs/APP_STORE_RELEASE.md').readAsStringSync();

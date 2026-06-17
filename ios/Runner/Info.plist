@@ -27,7 +27,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.nightelf.lessdo</string>
+			<string>com.ruancanghui.lessdo</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>lessdo</string>

@@ -18,6 +18,8 @@ PRIVACY_URL="$(read_yaml privacy_policy_url)"
 SUPPORT_URL="$(read_yaml support_url)"
 COPYRIGHT="$(read_yaml copyright)"
 PUBLISHED="$(read_yaml policy_published)"
+BUNDLE_ID="$(read_yaml ios_bundle_id)"
+BUNDLE_ID_TESTS="${BUNDLE_ID}.RunnerTests"
 
 escape_dart() {
   printf "%s" "$1" | sed "s/'/\\\\'/g"
@@ -112,7 +114,94 @@ for hosted in privacy.html support.html; do
   perl -pi -e "s/LESSDO_SUPPORT_EMAIL/$EMAIL/g" "$ROOT/docs/hosted/$hosted"
 done
 
+apply_bundle_id() {
+  local bundle="$1"
+  ruby -ryaml -e '
+    require "fileutils"
+    bundle = ARGV[0]
+    root = ARGV[1]
+    bundle_tests = "#{bundle}.RunnerTests"
+    android_path = bundle.tr(".", "/")
+
+    File.write(
+      File.join(root, "macos/Runner/Configs/AppInfo.xcconfig"),
+      File.read(File.join(root, "macos/Runner/Configs/AppInfo.xcconfig")).sub(
+        /^PRODUCT_BUNDLE_IDENTIFIER = .+;/,
+        "PRODUCT_BUNDLE_IDENTIFIER = #{bundle}",
+      ),
+    )
+
+    ios_project = File.join(root, "ios/Runner.xcodeproj/project.pbxproj")
+    ios_text = File.read(ios_project)
+    ios_text.gsub!(/PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/, "PRODUCT_BUNDLE_IDENTIFIER = #{bundle};")
+    ios_text.gsub!(
+      /(TEST_HOST = .*?PRODUCT_BUNDLE_IDENTIFIER = )#{Regexp.escape(bundle)};/m,
+      "\\1#{bundle_tests};",
+    )
+    ios_text.gsub!(
+      /(INFOPLIST_FILE = Runner\/Info.plist;.*?PRODUCT_BUNDLE_IDENTIFIER = )#{Regexp.escape(bundle_tests)};/m,
+      "\\1#{bundle};",
+    )
+    File.write(ios_project, ios_text)
+
+    macos_project = File.join(root, "macos/Runner.xcodeproj/project.pbxproj")
+    File.write(
+      macos_project,
+      File.read(macos_project).gsub(
+        /PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/,
+        "PRODUCT_BUNDLE_IDENTIFIER = #{bundle_tests};",
+      ),
+    )
+
+  %w[ios macos].each do |platform|
+    plist = File.join(root, "#{platform}/Runner/Info.plist")
+    next unless File.file?(plist)
+    File.write(
+      plist,
+      File.read(plist).sub(
+        /(<key>CFBundleURLName<\/key>\s*<string>)[^<]+/,
+        "\\1#{bundle}",
+      ),
+    )
+  end
+
+  gradle = File.join(root, "android/app/build.gradle.kts")
+  gradle_text = File.read(gradle)
+  gradle_text.gsub!(/namespace = "[^"]+"/, "namespace = \"#{bundle}\"")
+  gradle_text.gsub!(/applicationId = "[^"]+"/, "applicationId = \"#{bundle}\"")
+  File.write(gradle, gradle_text)
+
+  kotlin_root = File.join(root, "android/app/src/main/kotlin")
+  kotlin_dir = File.join(kotlin_root, android_path)
+  FileUtils.mkdir_p(kotlin_dir)
+  activity = Dir.glob(File.join(kotlin_root, "**/MainActivity.kt")).first
+  if activity
+    File.write(activity, File.read(activity).sub(/^package .+/, "package #{bundle}"))
+    target = File.join(kotlin_dir, "MainActivity.kt")
+    FileUtils.mv(activity, target) unless File.expand_path(activity) == File.expand_path(target)
+  end
+  Dir.glob(File.join(kotlin_root, "**/*")).select { |path| File.directory?(path) }.sort_by(&:length).reverse_each do |dir|
+    Dir.rmdir(dir) if Dir.empty?(dir)
+  rescue SystemCallError
+  end
+
+  %w[
+    docs/APP_STORE_RELEASE.md
+    docs/APP_STORE_CONNECT_UPLOAD.md
+    docs/app_store_connect/en-US.txt
+    docs/app_store_connect/zh-Hans.txt
+  ].each do |rel|
+    path = File.join(root, rel)
+    next unless File.file?(path)
+    File.write(path, File.read(path).gsub(/com\.[A-Za-z0-9_.-]+\.lessdo/, bundle))
+  end
+  ' "$bundle" "$ROOT"
+}
+
+apply_bundle_id "$BUNDLE_ID"
+
 echo "Applied publisher contact from $CONFIG"
+echo "iOS bundle ID: $BUNDLE_ID"
 echo "GitHub Pages URLs:"
 echo "  $PRIVACY_URL"
 echo "  $SUPPORT_URL"
