@@ -118,7 +118,7 @@ perl -pi -e "s|- Copyright: .*|- Copyright: \`$COPYRIGHT\`|" "$ROOT/docs/APP_STO
 perl -pi -e "s|- Privacy policy URL: .*|- Privacy policy URL: \`$PRIVACY_URL\`|g" "$ROOT/docs/APP_STORE_METADATA.md"
 
 for hosted in privacy.html support.html; do
-  EMAIL="$EMAIL" perl -pi -e 's/LESSDO_SUPPORT_EMAIL/$ENV{EMAIL}/g' "$ROOT/docs/hosted/$hosted"
+  EMAIL="$EMAIL" perl -pi -e 's/LESSDO_SUPPORT_EMAIL/$ENV{EMAIL}/g' "$ROOT/docs/$hosted"
 done
 
 apply_bundle_id() {

@@ -66,7 +66,7 @@ before Archive upload. Paste metadata from `docs/app_store_connect/`.
 
 ## GitHub Pages (privacy and support URLs)
 
-1. Configure Pages on **`ruancanghui-hub/lessdo`**: Branch `feature/lessdo-ios-1.0` (or `main`), Folder **`/docs/hosted`**. See `docs/GITHUB_PAGES.md`.
+1. Configure Pages on **`ruancanghui-hub/lessdo`**: Branch `main`, Folder **`/docs`**. Public HTML: `docs/privacy.html`, `docs/support.html`. See `docs/GITHUB_PAGES.md`.
 2. Confirm these URLs return HTTP 200:
    - `https://ruancanghui-hub.github.io/lessdo/privacy.html`
    - `https://ruancanghui-hub.github.io/lessdo/support.html`

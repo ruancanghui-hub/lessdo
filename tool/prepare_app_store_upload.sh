@@ -73,23 +73,7 @@ for url in "$PRIVACY_URL" "$SUPPORT_URL"; do
   if [[ "$code" == "200" ]]; then
     ok "${url} (${code})"
   else
-    hosted_hint=""
-    if [[ "$url" == *"/privacy.html" ]]; then
-      hosted_url="${url%/privacy.html}/hosted/privacy.html"
-      hosted_code="$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 15 "$hosted_url" || echo "000")"
-      if [[ "$hosted_code" == "200" ]]; then
-        hosted_hint=" — Pages Folder is still /docs; change to /docs/hosted (docs/GITHUB_PAGES.md)"
-      else
-        hosted_hint=" — push docs/hosted/ and set Pages Folder to /docs/hosted"
-      fi
-    elif [[ "$url" == *"/support.html" ]]; then
-      hosted_url="${url%/support.html}/hosted/support.html"
-      hosted_code="$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 15 "$hosted_url" || echo "000")"
-      if [[ "$hosted_code" == "200" ]]; then
-        hosted_hint=" — Pages Folder is still /docs; change to /docs/hosted (docs/GITHUB_PAGES.md)"
-      fi
-    fi
-    bad "${url} (HTTP ${code})${hosted_hint}"
+    bad "${url} (HTTP ${code}) — push docs/privacy.html & docs/support.html to GitHub (Folder: /docs, see docs/GITHUB_PAGES.md)"
   fi
 done
 
@@ -97,7 +81,7 @@ PRIVACY_BODY="$(curl -s -L --max-time 15 "$PRIVACY_URL" || true)"
 if [[ "$PRIVACY_BODY" == *"Google AdMob"* ]]; then
   ok "live privacy policy mentions Google AdMob"
 else
-  bad "live privacy policy missing Google AdMob — push docs/hosted/ and check Pages folder"
+  bad "live privacy policy missing Google AdMob — push docs/privacy.html to GitHub (Pages Folder: /docs)"
 fi
 
 if [[ "${POLICY_LIVE}" == "true" ]]; then
@@ -113,18 +97,18 @@ else
 fi
 
 echo
-echo "==> Hosted policy pages"
-HOSTED_PRIVACY="${ROOT}/docs/hosted/privacy.html"
-HOSTED_SUPPORT="${ROOT}/docs/hosted/support.html"
-if grep_file "Google AdMob" "$HOSTED_PRIVACY"; then
-  ok "hosted privacy.html mentions Google AdMob"
+echo "==> Public policy pages (docs/)"
+PUBLIC_PRIVACY="${ROOT}/docs/privacy.html"
+PUBLIC_SUPPORT="${ROOT}/docs/support.html"
+if grep_file "Google AdMob" "$PUBLIC_PRIVACY"; then
+  ok "docs/privacy.html mentions Google AdMob"
 else
-  bad "hosted privacy.html missing Google AdMob disclosure"
+  bad "docs/privacy.html missing Google AdMob disclosure"
 fi
-if grep_any_file "$SUPPORT_EMAIL" "$HOSTED_PRIVACY" "$HOSTED_SUPPORT"; then
-  ok "hosted pages use support_email (${SUPPORT_EMAIL})"
+if grep_any_file "$SUPPORT_EMAIL" "$PUBLIC_PRIVACY" "$PUBLIC_SUPPORT"; then
+  ok "public pages use support_email (${SUPPORT_EMAIL})"
 else
-  bad "hosted pages missing support_email (${SUPPORT_EMAIL})"
+  bad "public pages missing support_email (${SUPPORT_EMAIL})"
 fi
 
 echo

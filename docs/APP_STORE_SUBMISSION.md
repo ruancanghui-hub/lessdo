@@ -19,7 +19,7 @@ cd source/src
 | # | 检查项 | 状态 / 操作 |
 |---|--------|-------------|
 | 1 | Bundle ID 为 `com.nightelf.lessdo` | 已配置 |
-| 2 | 隐私政策 URL 可访问且**内容与 App 一致（含 AdMob）** | `https://ruancanghui-hub.github.io/lessdo/privacy.html` — **部署 `docs/hosted/` 后再提交** |
+| 2 | 隐私政策 URL 可访问且**内容与 App 一致（含 AdMob）** | `https://ruancanghui-hub.github.io/lessdo/privacy.html` — **推送 `docs/privacy.html` 后再提交** |
 | 3 | 支持 URL 可访问、邮箱正确 | `https://ruancanghui-hub.github.io/lessdo/support.html` · `lessdo.support@nightelf.dev` |
 | 4 | 应用描述 / 应用内隐私 / 公开隐私页 / App Privacy **四处关于广告的表述一致** | 见下文 §6 |
 | 5 | 构建号大于 App Store Connect 已有构建 | 修改 `pubspec.yaml` 如 `1.0.0+2` |
@@ -30,7 +30,7 @@ cd source/src
 
 | 风险 | 说明 |
 |------|------|
-| 公开隐私页写「无广告」但 App 有 AdMob | 已更新 `docs/hosted/privacy.html`，**须同步到 GitHub Pages** |
+| 公开隐私页写「无广告」但 App 有 AdMob | 已更新 `docs/privacy.html`，**须 push 到 GitHub** |
 | 支持页邮箱错误（`lessdo.support.dev`） | 已修正；`apply_publisher_contact.sh` 已修复 `@` 替换 bug |
 | App Privacy 仍填「不收集任何数据」 | 须按 §6 声明 **Google 第三方广告** 数据 |
 | 年龄分级「无广告」与事实不符 | 须选 **含第三方广告**，见 §7 |
@@ -169,7 +169,7 @@ Contact Info、Health、Financial Info、Precise Location、Sensitive Info、Con
 
 - App Store 描述（`en-US.txt` / `zh-Hans.txt`）
 - 应用内：设置 → 法律信息 → 隐私政策（`lib/legal/legal_content.dart`）
-- 公开页：`docs/hosted/privacy.html`（须部署到 GitHub Pages）
+- 公开页：`docs/privacy.html`（GitHub Pages Folder: `/docs`）
 - 本文 §6
 
 ---
@@ -308,14 +308,14 @@ mkdir -p docs/app_store_connect/screenshots/{iphone-6.9,ipad-13}/{en,zh}
 
 ## 十四、GitHub Pages 部署
 
-公开页源码在 `docs/hosted/`。配置与验证见 **`docs/GITHUB_PAGES.md`**。
+公开页源码在 `docs/privacy.html`、`docs/support.html`。配置见 **`docs/GITHUB_PAGES.md`**。
 
 **GitHub Pages 设置（lessdo 仓库）：**
 
 | 项 | 值 |
 |----|-----|
-| Branch | `feature/lessdo-ios-1.0`（长期建议 `main`） |
-| Folder | **`/docs/hosted`** |
+| Branch | `main`（或你的发布分支） |
+| Folder | **`/docs`**（GitHub 不支持 `/docs/hosted`） |
 
 推送后确认：
 
@@ -323,7 +323,7 @@ mkdir -p docs/app_store_connect/screenshots/{iphone-6.9,ipad-13}/{en,zh}
 - `https://ruancanghui-hub.github.io/lessdo/support.html` → 200
 
 ```bash
-git push   # 推送 docs/hosted/
+git push   # 包含 docs/privacy.html 等
 ./tool/prepare_app_store_upload.sh
 ```
 
@@ -375,7 +375,7 @@ git push   # 推送 docs/hosted/
 | `docs/APP_STORE_CONNECT_UPLOAD.md` | 上传步骤摘要 |
 | `docs/publisher_contact.yaml` | 邮箱 / URL / Bundle ID |
 | `docs/GITHUB_PAGES.md` | GitHub Pages 文件夹配置 |
-| `docs/hosted/` | 公开隐私 / 支持页源码 |
+| `docs/privacy.html` / `docs/support.html` | 公开页源码（Pages Folder: `/docs`） |
 | `tool/prepare_app_store_upload.sh` | 上传前自检 |
 | `tool/apply_publisher_contact.sh` | 同步发布方配置 |
 

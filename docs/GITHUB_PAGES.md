@@ -2,6 +2,15 @@
 
 公开隐私政策与支持页供 App Store Connect 使用。
 
+## GitHub 的限制
+
+GitHub Pages **只能**选这两个目录之一：
+
+- `/`（仓库根目录）
+- `/docs`（仓库里的 `docs/` 文件夹）
+
+**没有** `/docs/hosted` 这种子目录选项。因此 HTML 必须放在 **`docs/` 根目录**（与 `privacy.html` 同级），不能放在 `docs/hosted/`。
+
 ## 正确配置（lessdo 仓库）
 
 在 **GitHub → ruancanghui-hub/lessdo → Settings → Pages**：
@@ -9,57 +18,33 @@
 | 项 | 值 |
 |----|-----|
 | Source | Deploy from a branch |
-| Branch | `feature/lessdo-ios-1.0`（合并到 main 后改为 `main`） |
-| Folder | **`/docs/hosted`**（不是 `/docs`） |
+| Branch | `main`（或你用来发布的分支） |
+| Folder | **`/docs`** |
 | Enforce HTTPS | 开启 |
 
-保存后等待 1–2 分钟构建完成。
+## 文件位置
 
-## 对应 URL
+| 文件 | 作用 |
+|------|------|
+| `docs/privacy.html` | 公开隐私政策 |
+| `docs/support.html` | 公开支持页 |
+| `docs/index.html` | 跳转到 support.html |
+| `docs/.nojekyll` | 禁用 Jekyll，避免 `.md` 被错误处理 |
 
-站点根目录 = 仓库中的 `docs/hosted/` 文件夹：
+App Store 填写的 URL：
 
-| 页面 | App Store 填写的 URL |
-|------|----------------------|
+| 页面 | URL |
+|------|-----|
 | 隐私政策 | `https://ruancanghui-hub.github.io/lessdo/privacy.html` |
 | 支持 | `https://ruancanghui-hub.github.io/lessdo/support.html` |
-| 首页 | `https://ruancanghui-hub.github.io/lessdo/` → 跳转到支持页 |
-
-**错误示例**（Folder 选成 `/docs` 时才会出现）：
-
-- `https://ruancanghui-hub.github.io/lessdo/hosted/privacy.html` ← 不要填到 App Store
 
 ## 推送与验证
 
-1. 将 `docs/hosted/` 下的 HTML 推送到 GitHub
-2. 确认 Pages Folder 为 **`/docs/hosted`**
-3. 本地验证：
-
 ```bash
+./tool/apply_publisher_contact.sh   # 更新邮箱后
+git add docs/privacy.html docs/support.html docs/index.html docs/.nojekyll
+git commit && git push
 ./tool/prepare_app_store_upload.sh
 ```
 
-或手动：
-
-```bash
-curl -I https://ruancanghui-hub.github.io/lessdo/privacy.html
-curl -I https://ruancanghui-hub.github.io/lessdo/support.html
-```
-
-两页均应返回 **HTTP 200**，隐私页正文含 **Google AdMob**。
-
-## 源码位置
-
-| 文件 | 说明 |
-|------|------|
-| `docs/hosted/privacy.html` | 公开隐私政策 |
-| `docs/hosted/support.html` | 公开支持页 |
-| `docs/hosted/index.html` | 跳转到 support.html |
-| `docs/hosted/.nojekyll` | 避免 Jekyll 处理 |
-
-修改邮箱后运行：
-
-```bash
-./tool/apply_publisher_contact.sh
-git add docs/hosted && git commit && git push
-```
+两页均应 **HTTP 200**，隐私页正文含 **Google AdMob**。
