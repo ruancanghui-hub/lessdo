@@ -23,6 +23,22 @@ yaml_value() {
   awk -F': ' -v k="$key" '$1 == k { print $2; exit }' "$CONTACT" | sed 's/^"//;s/"$//'
 }
 
+grep_file() {
+  grep -Fq -- "$1" "$2"
+}
+
+grep_any_file() {
+  local needle="$1"
+  shift
+  local file
+  for file in "$@"; do
+    if grep -Fq -- "$needle" "$file"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 echo "==> LessDo App Store upload readiness"
 echo
 
@@ -39,7 +55,7 @@ else
 fi
 
 BUNDLE_ID="$(yaml_value ios_bundle_id)"
-if rg -q "PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};" ios/Runner.xcodeproj/project.pbxproj; then
+if grep_file "PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};" ios/Runner.xcodeproj/project.pbxproj; then
   ok "iOS bundle ID matches publisher config (${BUNDLE_ID})"
 else
   bad "iOS bundle ID mismatch (expected ${BUNDLE_ID})"
@@ -57,9 +73,32 @@ for url in "$PRIVACY_URL" "$SUPPORT_URL"; do
   if [[ "$code" == "200" ]]; then
     ok "${url} (${code})"
   else
-    bad "${url} (HTTP ${code})"
+    hosted_hint=""
+    if [[ "$url" == *"/privacy.html" ]]; then
+      hosted_url="${url%/privacy.html}/hosted/privacy.html"
+      hosted_code="$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 15 "$hosted_url" || echo "000")"
+      if [[ "$hosted_code" == "200" ]]; then
+        hosted_hint=" — Pages Folder is still /docs; change to /docs/hosted (docs/GITHUB_PAGES.md)"
+      else
+        hosted_hint=" — push docs/hosted/ and set Pages Folder to /docs/hosted"
+      fi
+    elif [[ "$url" == *"/support.html" ]]; then
+      hosted_url="${url%/support.html}/hosted/support.html"
+      hosted_code="$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 15 "$hosted_url" || echo "000")"
+      if [[ "$hosted_code" == "200" ]]; then
+        hosted_hint=" — Pages Folder is still /docs; change to /docs/hosted (docs/GITHUB_PAGES.md)"
+      fi
+    fi
+    bad "${url} (HTTP ${code})${hosted_hint}"
   fi
 done
+
+PRIVACY_BODY="$(curl -s -L --max-time 15 "$PRIVACY_URL" || true)"
+if [[ "$PRIVACY_BODY" == *"Google AdMob"* ]]; then
+  ok "live privacy policy mentions Google AdMob"
+else
+  bad "live privacy policy missing Google AdMob — push docs/hosted/ and check Pages folder"
+fi
 
 if [[ "${POLICY_LIVE}" == "true" ]]; then
   ok "policy_published is true"
@@ -77,12 +116,12 @@ echo
 echo "==> Hosted policy pages"
 HOSTED_PRIVACY="${ROOT}/docs/hosted/privacy.html"
 HOSTED_SUPPORT="${ROOT}/docs/hosted/support.html"
-if rg -q "Google AdMob" "$HOSTED_PRIVACY"; then
+if grep_file "Google AdMob" "$HOSTED_PRIVACY"; then
   ok "hosted privacy.html mentions Google AdMob"
 else
   bad "hosted privacy.html missing Google AdMob disclosure"
 fi
-if rg -q "$SUPPORT_EMAIL" "$HOSTED_PRIVACY" "$HOSTED_SUPPORT"; then
+if grep_any_file "$SUPPORT_EMAIL" "$HOSTED_PRIVACY" "$HOSTED_SUPPORT"; then
   ok "hosted pages use support_email (${SUPPORT_EMAIL})"
 else
   bad "hosted pages missing support_email (${SUPPORT_EMAIL})"

@@ -66,12 +66,11 @@ before Archive upload. Paste metadata from `docs/app_store_connect/`.
 
 ## GitHub Pages (privacy and support URLs)
 
-1. The public site is served from `ruancanghui-hub/ruancanghui-hub.github.io`
-   under `lessdo/`.
+1. Configure Pages on **`ruancanghui-hub/lessdo`**: Branch `feature/lessdo-ios-1.0` (or `main`), Folder **`/docs/hosted`**. See `docs/GITHUB_PAGES.md`.
 2. Confirm these URLs return HTTP 200:
    - `https://ruancanghui-hub.github.io/lessdo/privacy.html`
    - `https://ruancanghui-hub.github.io/lessdo/support.html`
-3. Optional: create a separate `lessdo` repository for the Flutter source code.
+3. Live privacy page must mention **Google AdMob**.
 4. Update `support_email` in `docs/publisher_contact.yaml` if needed, keep
    `policy_published: true`, then run `./tool/apply_publisher_contact.sh`.
 

@@ -45,7 +45,7 @@ if find "$APP/Frameworks" -maxdepth 1 -iname '*purchase*' 2>/dev/null | grep -q 
   exit 1
 fi
 
-if rg -a -n "Upgrade|Premium|Cloud sync|Calendar sync|example.com" "$APP" >/dev/null 2>&1; then
+if grep -a -E -q "Upgrade|Premium|Cloud sync|Calendar sync|example.com" "$APP" 2>/dev/null; then
   echo "forbidden marketing strings in release bundle" >&2
   exit 1
 fi

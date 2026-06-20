@@ -1,5 +1,6 @@
 # LessDo 1.0 publisher contact
-# GitHub Pages: deploy docs/hosted/ → Settings → Pages → /docs/hosted
+# GitHub Pages (lessdo repo): Settings → Pages → Branch: feature/lessdo-ios-1.0 → Folder: /docs/hosted
+# Live URLs: …/lessdo/privacy.html and …/lessdo/support.html (NOT …/lessdo/hosted/…)
 # Apply: ./tool/apply_publisher_contact.sh
 
 github_user: ruancanghui-hub

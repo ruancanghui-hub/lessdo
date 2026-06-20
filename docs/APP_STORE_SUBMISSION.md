@@ -306,20 +306,25 @@ mkdir -p docs/app_store_connect/screenshots/{iphone-6.9,ipad-13}/{en,zh}
 
 ---
 
-## 十四、GitHub Pages 部署（阻塞公开 URL）
+## 十四、GitHub Pages 部署
 
-公开隐私/支持页源码在 `docs/hosted/`。提交 App Store **前**须部署，否则审核可能因 URL 内容过期拒审。
+公开页源码在 `docs/hosted/`。配置与验证见 **`docs/GITHUB_PAGES.md`**。
 
-1. 将 `docs/hosted/` 同步到 `ruancanghui-hub.github.io` 仓库的 `lessdo/` 目录
-2. 确认返回 HTTP 200：
-   - `https://ruancanghui-hub.github.io/lessdo/privacy.html`
-   - `https://ruancanghui-hub.github.io/lessdo/support.html`
-3. 浏览器打开隐私页，确认含 **Google AdMob** 段落且邮箱为 `lessdo.support@nightelf.dev`
+**GitHub Pages 设置（lessdo 仓库）：**
 
-本地应用联系信息：
+| 项 | 值 |
+|----|-----|
+| Branch | `feature/lessdo-ios-1.0`（长期建议 `main`） |
+| Folder | **`/docs/hosted`** |
+
+推送后确认：
+
+- `https://ruancanghui-hub.github.io/lessdo/privacy.html` → 200，含 AdMob
+- `https://ruancanghui-hub.github.io/lessdo/support.html` → 200
 
 ```bash
-./tool/apply_publisher_contact.sh
+git push   # 推送 docs/hosted/
+./tool/prepare_app_store_upload.sh
 ```
 
 ---
@@ -369,7 +374,8 @@ mkdir -p docs/app_store_connect/screenshots/{iphone-6.9,ipad-13}/{en,zh}
 | `docs/APP_STORE_RELEASE.md` | 发布总清单 |
 | `docs/APP_STORE_CONNECT_UPLOAD.md` | 上传步骤摘要 |
 | `docs/publisher_contact.yaml` | 邮箱 / URL / Bundle ID |
-| `docs/hosted/` | GitHub Pages 静态页 |
+| `docs/GITHUB_PAGES.md` | GitHub Pages 文件夹配置 |
+| `docs/hosted/` | 公开隐私 / 支持页源码 |
 | `tool/prepare_app_store_upload.sh` | 上传前自检 |
 | `tool/apply_publisher_contact.sh` | 同步发布方配置 |
 
