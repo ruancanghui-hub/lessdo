@@ -119,7 +119,8 @@ for file in \
   docs/app_store_connect/review-notes.txt \
   docs/APP_STORE_CONNECT_UPLOAD.md \
   docs/APP_STORE_METADATA.md \
-  docs/APP_STORE_SUBMISSION.md; do
+  docs/APP_STORE_SUBMISSION.md \
+  docs/APP_STORE_CONNECT填表手册.md; do
   if [[ -f "$file" ]]; then
     ok "$file"
   else
