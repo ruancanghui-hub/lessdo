@@ -85,12 +85,15 @@ Google AdMob 展示开屏广告。
 
 ## Age Rating Worksheet
 
-Answer `None` or `No` for all content-frequency and sensitive-capability
-questions: violence, sexual content, profanity, controlled substances,
-gambling, contests, horror, medical treatment, unrestricted web access,
-messaging/chat, user-generated content, advertising, and age assurance.
+Answer `None` or `No` for violence, sexual content, profanity, controlled
+substances, gambling, contests, horror, medical treatment, unrestricted web
+access, messaging/chat, user-generated content, and age assurance.
 
-Expected rating: 4+, subject to App Store Connect's final calculation.
+For **advertising**, answer **Yes** — the app shows third-party app open ads
+through Google AdMob on launch and when returning to the foreground. Ad content
+is served by Google; LessDo does not embed its own promotional material.
+
+Expected rating: **4+**, subject to App Store Connect's final calculation.
 
 ## App Privacy
 
@@ -105,7 +108,12 @@ Expected rating: 4+, subject to App Store Connect's final calculation.
 
 ## Review Notes
 
-LessDo 1.0 is a free, local-only task and focus app with no account.
+LessDo 1.0 is a free, local-first task and focus app with no account. Task
+data stays on the device only.
+
+Google AdMob app open ads may appear on cold start and when returning to the
+foreground. If Face ID lock is enabled, ads appear only after unlock. The app
+does not show an App Tracking Transparency prompt.
 
 Notification permission is requested only after a user schedules or retries a
 reminder. Biometric authentication is optional under Settings > Privacy.

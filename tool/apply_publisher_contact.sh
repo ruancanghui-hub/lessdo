@@ -54,9 +54,14 @@ ${PRIVACY_DRAFT_BLOCK}Effective date: June 14, 2026.
 
 ## Summary
 
-LessDo is a local-first task and focus app. Version 1.0 does not collect,
-transmit, sell, or share personal data with the publisher or third parties. It
-has no account system, advertising, analytics, tracking, or remote backend.
+LessDo is a local-first task and focus app. Your lists, tasks, reminders,
+settings, and focus history stay on your device. LessDo has no account system,
+publisher-operated analytics, tracking, or remote backend.
+
+Version 1.0 shows Google AdMob app open ads when you launch or return to the
+app. Google may collect device and usage information to deliver and measure
+ads under [Google's privacy policy](https://policies.google.com/privacy).
+LessDo does not send your task content to Google or use it for advertising.
 
 ## Data Stored on the Device
 
@@ -82,8 +87,10 @@ user explicitly exports it.
 
 ## Data Collection
 
-LessDo does not collect data from the app. App Store Connect should be answered
-with: **No, we do not collect data from this app.**
+The publisher does not collect personal data from the app. Google AdMob may
+collect data from the advertising SDK as described in Google's documentation.
+In App Store Connect, disclose third-party data collection for advertising
+through Google AdMob and follow Google's App Privacy guidance for the SDK.
 
 ## Permissions
 
@@ -111,7 +118,7 @@ perl -pi -e "s|- Copyright: .*|- Copyright: \`$COPYRIGHT\`|" "$ROOT/docs/APP_STO
 perl -pi -e "s|- Privacy policy URL: .*|- Privacy policy URL: \`$PRIVACY_URL\`|g" "$ROOT/docs/APP_STORE_METADATA.md"
 
 for hosted in privacy.html support.html; do
-  perl -pi -e "s/LESSDO_SUPPORT_EMAIL/$EMAIL/g" "$ROOT/docs/hosted/$hosted"
+  EMAIL="$EMAIL" perl -pi -e 's/LESSDO_SUPPORT_EMAIL/$ENV{EMAIL}/g' "$ROOT/docs/hosted/$hosted"
 done
 
 apply_bundle_id() {

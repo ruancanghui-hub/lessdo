@@ -61,14 +61,21 @@ open ios/Runner.xcworkspace
 
 ## 5. App 隐私
 
-- **是否从此 App 收集数据？** → **否**
-- **是否用于跟踪？** → **否**
+**完整逐步填写见 `docs/APP_STORE_SUBMISSION.md` §6。**
+
+摘要：
+
+- 发布者（LessDo）**不**收集个人数据
+- 第三方 **Google AdMob** **会**为第三方广告收集数据
+- **Tracking：否**（未使用 App Tracking Transparency）
 - 隐私政策 URL：同上
 
 ## 6. 年龄分级
 
  violence / sexual / profanity / drugs / gambling / horror / medical /
- unrestricted web / messaging / UGC / ads / age assurance → 全部 **无 / 否**。
+ unrestricted web / messaging / UGC / age assurance → 全部 **无 / 否**。
+
+**广告（Advertising）→ 是**（Google AdMob 开屏广告）。详见 `APP_STORE_SUBMISSION.md` §7。
 
 预期 **4+**（以 Connect 计算结果为准）。
 
@@ -117,6 +124,7 @@ mkdir -p docs/app_store_connect/screenshots/{iphone-6.9,ipad-13}/{en,zh}
 
 ## 10. 相关文档
 
+- **提审资料包（推荐先看）：** `docs/APP_STORE_SUBMISSION.md`
 - 发布总清单：`docs/APP_STORE_RELEASE.md`
 - 元数据详表：`docs/APP_STORE_METADATA.md`
 - 发布方配置：`docs/publisher_contact.yaml` → `./tool/apply_publisher_contact.sh`

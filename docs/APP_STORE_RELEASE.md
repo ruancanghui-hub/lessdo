@@ -61,7 +61,7 @@ Do not submit while any item above remains incomplete.
 
 ## App Store Connect upload
 
-Follow `docs/APP_STORE_CONNECT_UPLOAD.md`. Run `./tool/prepare_app_store_upload.sh`
+Follow `docs/APP_STORE_SUBMISSION.md`. Run `./tool/prepare_app_store_upload.sh`
 before Archive upload. Paste metadata from `docs/app_store_connect/`.
 
 ## GitHub Pages (privacy and support URLs)

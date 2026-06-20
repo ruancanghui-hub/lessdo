@@ -74,13 +74,29 @@ else
 fi
 
 echo
+echo "==> Hosted policy pages"
+HOSTED_PRIVACY="${ROOT}/docs/hosted/privacy.html"
+HOSTED_SUPPORT="${ROOT}/docs/hosted/support.html"
+if rg -q "Google AdMob" "$HOSTED_PRIVACY"; then
+  ok "hosted privacy.html mentions Google AdMob"
+else
+  bad "hosted privacy.html missing Google AdMob disclosure"
+fi
+if rg -q "$SUPPORT_EMAIL" "$HOSTED_PRIVACY" "$HOSTED_SUPPORT"; then
+  ok "hosted pages use support_email (${SUPPORT_EMAIL})"
+else
+  bad "hosted pages missing support_email (${SUPPORT_EMAIL})"
+fi
+
+echo
 echo "==> Upload copy files"
 for file in \
   docs/app_store_connect/en-US.txt \
   docs/app_store_connect/zh-Hans.txt \
   docs/app_store_connect/review-notes.txt \
   docs/APP_STORE_CONNECT_UPLOAD.md \
-  docs/APP_STORE_METADATA.md; do
+  docs/APP_STORE_METADATA.md \
+  docs/APP_STORE_SUBMISSION.md; do
   if [[ -f "$file" ]]; then
     ok "$file"
   else
@@ -107,7 +123,7 @@ flutter test test/theme/lessdo_theme_test.dart >/dev/null && ok "theme regressio
 echo
 if [[ "${FAIL}" -eq 0 ]]; then
   echo "Ready for metadata entry and Archive upload (${PASS} checks passed)."
-  echo "Next: open docs/APP_STORE_CONNECT_UPLOAD.md and ios/Runner.xcworkspace"
+  echo "Next: open docs/APP_STORE_SUBMISSION.md and ios/Runner.xcworkspace"
   exit 0
 fi
 

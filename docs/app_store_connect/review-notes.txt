@@ -1,4 +1,6 @@
-LessDo 1.0 is a free, local-only task and focus app with no account.
+LessDo 1.0 is a free, local-first task and focus app with no account. Task data stays on the device only.
+
+Advertising: Google AdMob app open ads may appear when the app launches or returns to the foreground. If Face ID / Touch ID lock is enabled, the ad is shown only after successful unlock. LessDo does not request App Tracking Transparency (no IDFA prompt). TestFlight / App Store builds use the production AdMob unit; Xcode debug builds use Google test ad units.
 
 Notification permission is requested only after a user schedules or retries a reminder. Biometric authentication is optional under Settings > Privacy. Biometric data is processed by iOS and is not available to the app.
 
@@ -8,7 +10,7 @@ lessdo://x-callback-url/create?content=Review%20task
 lessdo://x-callback-url/open?list=Inbox
 
 No review account, server configuration, or special hardware is required.
-A physical device is required to verify notification delivery and biometrics.
+A physical device is recommended to verify notification delivery, biometrics, and ad presentation.
 
 Support: lessdo.support@nightelf.dev
 Privacy: https://ruancanghui-hub.github.io/lessdo/privacy.html
