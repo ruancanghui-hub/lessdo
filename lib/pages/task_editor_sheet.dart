@@ -18,15 +18,62 @@ Future<void> showTaskEditor(
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _TaskEditorSheet(store: store, taskId: taskId),
+    builder: (_) => _TaskEditorSheet.edit(store: store, taskId: taskId),
+  );
+}
+
+Future<void> showNewTaskEditor(
+  BuildContext context, {
+  required AppController store,
+  String listId = 'inbox',
+  DateTime? initialDueAt,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _TaskEditorSheet.newTask(
+      store: store,
+      listId: listId,
+      initialDueAt: initialDueAt,
+    ),
   );
 }
 
 class _TaskEditorSheet extends StatefulWidget {
-  const _TaskEditorSheet({required this.store, required this.taskId});
+  const _TaskEditorSheet._({
+    required this.store,
+    this.taskId,
+    this.listId = 'inbox',
+    this.initialDueAt,
+  });
+
+  factory _TaskEditorSheet.edit({
+    required AppController store,
+    required String taskId,
+  }) {
+    return _TaskEditorSheet._(store: store, taskId: taskId);
+  }
+
+  factory _TaskEditorSheet.newTask({
+    required AppController store,
+    String listId = 'inbox',
+    DateTime? initialDueAt,
+  }) {
+    return _TaskEditorSheet._(
+      store: store,
+      listId: listId,
+      initialDueAt: initialDueAt,
+    );
+  }
 
   final AppController store;
-  final String taskId;
+  final String? taskId;
+  final String listId;
+  final DateTime? initialDueAt;
+
+  bool get isNew => taskId == null;
 
   @override
   State<_TaskEditorSheet> createState() => _TaskEditorSheetState();
@@ -43,8 +90,27 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
   @override
   void initState() {
     super.initState();
-    _draft = widget.store.taskById(widget.taskId);
-    _titleController = TextEditingController(text: _draft.title);
+    if (widget.isNew) {
+      final now = DateTime.now();
+      final nextSortOrder = widget.store.tasks.isEmpty
+          ? 0
+          : widget.store.tasks
+                    .map((task) => task.sortOrder)
+                    .reduce((left, right) => left > right ? left : right) +
+                1;
+      _draft = TaskItem.create(
+        id: const Uuid().v4(),
+        title: '.',
+        listId: widget.listId,
+        createdAt: now,
+        dueAt: widget.initialDueAt,
+        sortOrder: nextSortOrder,
+      );
+      _titleController = TextEditingController();
+    } else {
+      _draft = widget.store.taskById(widget.taskId!);
+      _titleController = TextEditingController(text: _draft.title);
+    }
     _notesController = TextEditingController(text: _draft.notes);
   }
 
@@ -58,6 +124,13 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
 
   Future<void> _save() async {
     if (_saving) return;
+    final trimmedTitle = _titleController.text.trim();
+    if (trimmedTitle.isEmpty) {
+      setState(() {
+        _saveError = AppLocalizations.of(context).couldNotSaveChanges;
+      });
+      return;
+    }
     setState(() {
       _saving = true;
       _saveError = null;
@@ -65,7 +138,7 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
     try {
       await widget.store.saveTask(
         _draft.copyWith(
-          title: _titleController.text.trim(),
+          title: trimmedTitle,
           notes: _notesController.text.trim(),
         ),
       );

@@ -41,7 +41,11 @@ class LessDoTopBar extends StatelessWidget {
               ),
             ),
             if (onAdd != null)
-              _TopButton(icon: CupertinoIcons.add, onPressed: onAdd)
+              _TopButton(
+                key: const Key('top-bar-add'),
+                icon: CupertinoIcons.add,
+                onPressed: onAdd,
+              )
             else if (onMore != null)
               _TopButton(
                 key: moreKey,

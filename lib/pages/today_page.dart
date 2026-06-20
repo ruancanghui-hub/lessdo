@@ -36,7 +36,11 @@ class TodayPage extends StatelessWidget {
 
     return Column(
       children: [
-        LessDoTopBar(title: l10n.today, onLeading: onOpenLists),
+        LessDoTopBar(
+          title: l10n.today,
+          onLeading: onOpenLists,
+          onAdd: () => showNewTaskEditor(context, store: store),
+        ),
         ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 67),
           child: Padding(
@@ -68,10 +72,15 @@ class TodayPage extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(
-                  width: 42,
-                  height: 42,
-                  child: Icon(CupertinoIcons.calendar, size: 23),
+                IconButton(
+                  key: const Key('today-calendar-button'),
+                  onPressed: () => _openNewTaskForDate(context, store: store),
+                  icon: const Icon(CupertinoIcons.calendar, size: 23),
+                  style: IconButton.styleFrom(
+                    fixedSize: const Size(42, 42),
+                    padding: EdgeInsets.zero,
+                    shape: const CircleBorder(),
+                  ),
                 ),
               ],
             ),
@@ -145,6 +154,25 @@ class TodayPage extends StatelessWidget {
       ],
     );
   }
+}
+
+Future<void> _openNewTaskForDate(
+  BuildContext context, {
+  required AppController store,
+}) async {
+  final picked = await showDatePicker(
+    context: context,
+    firstDate: DateTime.now().subtract(const Duration(days: 365)),
+    lastDate: DateTime.now().add(const Duration(days: 3650)),
+    initialDate: DateTime.now(),
+  );
+  if (picked == null || !context.mounted) return;
+
+  await showNewTaskEditor(
+    context,
+    store: store,
+    initialDueAt: DateTime(picked.year, picked.month, picked.day, 18),
+  );
 }
 
 class _ReminderBanner extends StatelessWidget {
