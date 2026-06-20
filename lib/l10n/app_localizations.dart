@@ -518,6 +518,12 @@ abstract class AppLocalizations {
   /// **'Smart input understands “tomorrow at 2pm”'**
   String get smartInputHint;
 
+  /// No description provided for @voiceInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use keyboard dictation'**
+  String get voiceInputHint;
+
   /// No description provided for @taskDetails.
   ///
   /// In en, this message translates to:

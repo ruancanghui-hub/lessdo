@@ -15,13 +15,20 @@ class QuickAdd extends StatefulWidget {
 
 class _QuickAddState extends State<QuickAdd> {
   final _controller = TextEditingController();
+  final _focusNode = FocusNode();
   var _submitting = false;
   String? _errorText;
 
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
+  }
+
+  void _startVoiceInput() {
+    if (_submitting) return;
+    _focusNode.requestFocus();
   }
 
   Future<void> _submit() async {
@@ -76,6 +83,7 @@ class _QuickAddState extends State<QuickAdd> {
                   child: TextField(
                     key: const Key('quick-add-field'),
                     controller: _controller,
+                    focusNode: _focusNode,
                     enabled: !_submitting,
                     onChanged: (_) => setState(() {}),
                     onSubmitted: (_) => _submit(),
@@ -104,9 +112,15 @@ class _QuickAddState extends State<QuickAdd> {
                     ),
                   )
                 else
-                  SizedBox(
-                    width: 42,
-                    child: Icon(CupertinoIcons.mic, color: accent, size: 25),
+                  IconButton(
+                    key: const Key('quick-add-voice'),
+                    onPressed: _submitting ? null : _startVoiceInput,
+                    tooltip: l10n.voiceInputHint,
+                    icon: Icon(CupertinoIcons.mic, color: accent, size: 25),
+                    style: IconButton.styleFrom(
+                      fixedSize: const Size(42, 42),
+                      padding: EdgeInsets.zero,
+                    ),
                   ),
                 const SizedBox(width: 6),
               ],

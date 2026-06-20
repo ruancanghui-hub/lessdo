@@ -80,6 +80,19 @@ void main() {
     expect(find.text('Pay bill'), findsNothing);
   });
 
+  testWidgets('voice button focuses the input field for keyboard dictation', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(child: QuickAdd(onSubmit: (_) async {})));
+
+    expect(_focusedField(tester), isFalse);
+
+    await tester.tap(find.byKey(const Key('quick-add-voice')));
+    await tester.pump();
+
+    expect(_focusedField(tester), isTrue);
+  });
+
   testWidgets('pending submit can complete after widget is unmounted', (
     tester,
   ) async {
@@ -118,4 +131,8 @@ double _contrastRatio(Color first, Color second) {
   final darker = identical(lighter, first) ? second : first;
   return (lighter.computeLuminance() + 0.05) /
       (darker.computeLuminance() + 0.05);
+}
+
+bool _focusedField(WidgetTester tester) {
+  return tester.widget<TextField>(find.byKey(const Key('quick-add-field'))).focusNode?.hasFocus ?? false;
 }

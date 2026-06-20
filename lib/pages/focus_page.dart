@@ -162,17 +162,6 @@ class _FocusPageState extends State<FocusPage> with WidgetsBindingObserver {
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        Positioned(
-                          top: -1,
-                          child: Container(
-                            width: 92,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF3C9F5A),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ),
                         Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [

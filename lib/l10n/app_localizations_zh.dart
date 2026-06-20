@@ -225,6 +225,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get smartInputHint => '智能输入支持“明天下午 2 点”';
 
   @override
+  String get voiceInputHint => '使用键盘听写输入';
+
+  @override
   String get taskDetails => '任务详情';
 
   @override

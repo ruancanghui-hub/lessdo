@@ -94,6 +94,7 @@
   "groceryAddHint": "添加物品",
   "addAction": "添加",
   "smartInputHint": "智能输入支持“明天下午 2 点”",
+  "voiceInputHint": "使用键盘听写输入",
   "taskDetails": "任务详情",
   "save": "保存",
   "listLabel": "清单",

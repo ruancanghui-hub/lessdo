@@ -94,6 +94,7 @@
   "groceryAddHint": "Add an item",
   "addAction": "Add",
   "smartInputHint": "Smart input understands “tomorrow at 2pm”",
+  "voiceInputHint": "Use keyboard dictation",
   "taskDetails": "Task details",
   "save": "Save",
   "listLabel": "List",

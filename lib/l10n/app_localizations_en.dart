@@ -240,6 +240,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get smartInputHint => 'Smart input understands “tomorrow at 2pm”';
 
   @override
+  String get voiceInputHint => 'Use keyboard dictation';
+
+  @override
   String get taskDetails => 'Task details';
 
   @override
