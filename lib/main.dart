@@ -15,9 +15,17 @@ import 'notifications/notification_coordinator.dart';
 import 'services/notification_service.dart';
 import 'services/platform_coordinators.dart';
 import 'services/share_service.dart';
+import 'ads/app_open_ad_manager.dart';
+import 'ads/mobile_ads_support.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (MobileAdsSupport.enabled) {
+    await MobileAds.instance.initialize();
+    unawaited(appOpenAdManager.loadAd());
+  }
 
   final diagnostics = await DiagnosticLog.openDefault(
     appVersion: '1.0.0+1',

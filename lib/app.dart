@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'ads/app_open_ad_manager.dart';
+import 'ads/mobile_ads_support.dart';
 import 'controllers/app_controller.dart';
 import 'l10n/app_localizations.dart';
 import 'models/app_settings.dart';
@@ -222,6 +224,7 @@ class _LoadedApplicationState extends State<_LoadedApplication>
     with WidgetsBindingObserver {
   var _locked = false;
   var _authenticating = false;
+  var _pendingAppOpenAd = false;
 
   @override
   void initState() {
@@ -230,7 +233,19 @@ class _LoadedApplicationState extends State<_LoadedApplication>
     if (widget.store.settings.faceId) {
       _locked = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowAppOpenAd());
     }
+  }
+
+  void _maybeShowAppOpenAd() {
+    if (!MobileAdsSupport.enabled) return;
+    if (_locked || _authenticating) {
+      _pendingAppOpenAd = true;
+      return;
+    }
+    _pendingAppOpenAd = false;
+    appOpenAdManager.showAdIfAvailable();
   }
 
   @override
@@ -239,6 +254,9 @@ class _LoadedApplicationState extends State<_LoadedApplication>
       setState(() => _locked = true);
     } else if (state == AppLifecycleState.resumed) {
       unawaited(_reconcileAndUnlock());
+      if (!_locked && !_authenticating) {
+        _maybeShowAppOpenAd();
+      }
     }
   }
 
@@ -260,6 +278,11 @@ class _LoadedApplicationState extends State<_LoadedApplication>
         _locked = !unlocked;
         _authenticating = false;
       });
+      if (unlocked && _pendingAppOpenAd) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _maybeShowAppOpenAd();
+        });
+      }
     }
   }
 

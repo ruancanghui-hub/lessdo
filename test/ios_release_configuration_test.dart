@@ -53,6 +53,14 @@ void main() {
     },
   );
 
+  test('iOS AdMob application ID is configured', () {
+    final plist = File('ios/Runner/Info.plist').readAsStringSync();
+    expect(
+      plist,
+      contains('ca-app-pub-1210970407399902~1651813383'),
+    );
+  });
+
   test('iOS bundle identifier matches publisher contact config', () {
     final config = File('docs/publisher_contact.yaml').readAsStringSync();
     final bundleId = RegExp(
@@ -82,7 +90,7 @@ void main() {
     final release = File('docs/APP_STORE_RELEASE.md').readAsStringSync();
     final metadata = File('docs/APP_STORE_METADATA.md');
 
-    expect(privacy, contains('does not collect'));
+    expect(privacy, contains('Google AdMob'));
     if (privacy.contains('DRAFT')) {
       expect(release, contains('PUBLISHER REQUIRED'));
     }
@@ -93,7 +101,8 @@ void main() {
     expect(combined, isNot(contains('must add a support email')));
     expect(combined.toLowerCase(), isNot(contains('subscription')));
     expect(combined.toLowerCase(), isNot(contains('in-app purchase')));
-    expect(combined, contains('No, we do not collect data from this app'));
+    expect(combined, contains('Publisher data collection'));
+    expect(combined, contains('Google AdMob'));
     expect(combined, contains('lessdo://x-callback-url/create'));
     expect(combined, contains('Physical-device evidence'));
   });

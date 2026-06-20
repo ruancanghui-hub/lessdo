@@ -21,9 +21,10 @@ reminders, and make focused progress with pomodoro, countdown, or count-up
 timers. Grocery lists keep shopping items easy to scan, while Today and overdue
 views help you see what matters now.
 
-Everything in version 1.0 stays on your device. There is no account, no
-advertising, no analytics, and no tracking. Optional Face ID or Touch ID lock
-adds another layer of privacy.
+Everything in version 1.0 stays on your device. There is no account and no
+publisher analytics or tracking. Optional Face ID or Touch ID lock adds another
+layer of privacy. App open ads are shown through Google AdMob when you launch or
+return to the app.
 
 Highlights:
 
@@ -54,8 +55,9 @@ LessDo 是一个安静、私密的待办与专注空间。
 正计时保持专注。购物清单让采购内容更易浏览，今天与逾期视图帮助你看清
 当前最重要的事情。
 
-1.0 版本的内容全部保存在你的设备上。无需账户，没有广告、分析或跟踪。
-你还可以选择使用 Face ID 或 Touch ID 锁定应用。
+1.0 版本的内容全部保存在你的设备上。无需账户，也没有发布者侧的分析或跟踪。
+你还可以选择使用 Face ID 或 Touch ID 锁定应用。应用启动或回到前台时会通过
+Google AdMob 展示开屏广告。
 
 主要功能：
 
@@ -92,9 +94,12 @@ Expected rating: 4+, subject to App Store Connect's final calculation.
 
 ## App Privacy
 
-- Data collection: **No, we do not collect data from this app**
-- Tracking: No
-- Tracking domains: None
+- Publisher data collection: **No** — LessDo does not collect personal data
+- Third-party data collection: **Yes** — Google AdMob may collect device and
+  usage data for third-party advertising; follow Google's SDK App Privacy
+  guidance when completing App Store Connect
+- Tracking: No (LessDo does not use App Tracking Transparency)
+- Tracking domains: None declared by the publisher
 - Privacy choices URL: Not applicable for version 1.0
 - Privacy policy URL: `https://ruancanghui-hub.github.io/lessdo/privacy.html`
 

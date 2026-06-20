@@ -42,7 +42,8 @@ void main() {
     expect(combined, isNot(contains('optional subscription')));
     expect(combined, isNot(contains('renew automatically')));
     expect(combined, contains('version 1.0 is free'));
-    expect(combined, contains('does not collect'));
+    expect(combined, contains('google admob'));
+    expect(combined, contains('does not collect personal data'));
     expect(combined, contains('no subscriptions, in-app purchases'));
   });
 }

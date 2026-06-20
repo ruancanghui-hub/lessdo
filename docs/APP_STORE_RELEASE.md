@@ -82,7 +82,8 @@ before Archive upload. Paste metadata from `docs/app_store_connect/`.
 - [ ] Primary category is Productivity; secondary category is Utilities.
 - [ ] English and Simplified Chinese metadata match
   `docs/APP_STORE_METADATA.md`.
-- [ ] App Privacy answer is `No, we do not collect data from this app`.
+- [ ] App Privacy answers match `docs/APP_STORE_METADATA.md`, including Google
+  AdMob third-party advertising disclosure.
 - [ ] Age rating answers match the metadata worksheet.
 - [ ] Review notes explain local reminders, optional biometric lock, and URL
   scheme testing.

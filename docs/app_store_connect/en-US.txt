@@ -15,7 +15,7 @@ LessDo is a calm, private place for everything you need to remember.
 
 Capture tasks quickly, organize them into flexible lists, schedule local reminders, and make focused progress with pomodoro, countdown, or count-up timers. Grocery lists keep shopping items easy to scan, while Today and overdue views help you see what matters now.
 
-Everything in version 1.0 stays on your device. There is no account, no advertising, no analytics, and no tracking. Optional Face ID or Touch ID lock adds another layer of privacy.
+Everything in version 1.0 stays on your device. There is no account and no publisher analytics or tracking. Optional Face ID or Touch ID lock adds another layer of privacy. App open ads are shown through Google AdMob when you launch or return to the app.
 
 Highlights:
 

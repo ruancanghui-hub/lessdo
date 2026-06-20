@@ -6,6 +6,7 @@ void main() {
   test('free release excludes purchase code and future feature plugins', () {
     final pubspec = File('pubspec.yaml').readAsStringSync();
     expect(pubspec, isNot(contains('in_app_purchase:')));
+    expect(pubspec, contains('google_mobile_ads:'));
     expect(File('lib/services/purchase_service.dart').existsSync(), isFalse);
   });
 
